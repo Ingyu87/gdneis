@@ -31,6 +31,8 @@ const fallbackState = {
     good_sentences: [],
     effort_sentences: [],
   },
+  basisExamples: [],
+  combinedSentences: [],
   finalText: "",
 };
 
@@ -256,30 +258,74 @@ function renderExampleItem(sentence) {
 function renderExamples() {
   els.resultList.innerHTML = "";
   const examples = state.examplesByLevel || {};
-  const total = LEVELS.reduce((sum, level) => sum + (examples[level.field] || []).length, 0);
+  const basisExamples = state.basisExamples || [];
+  const combinedSentences = state.combinedSentences || [];
+  const total = LEVELS.reduce((sum, level) => sum + (examples[level.field] || []).length, 0)
+    + basisExamples.reduce((sum, entry) => sum
+      + (entry.excellent_sentences || []).length
+      + (entry.good_sentences || []).length
+      + (entry.effort_sentences || []).length, 0)
+    + combinedSentences.length;
 
   if (!total) {
     els.resultList.innerHTML = '<p class="neis-note">AI 예시문장 생성 버튼을 누르면 선택한 학년·학기 근거에 맞는 예시문장을 제시합니다.</p>';
     return;
   }
 
+  if (combinedSentences.length) {
+    const section = document.createElement("div");
+    section.className = "section-label";
+    section.textContent = "종합 예시문장";
+    els.resultList.appendChild(section);
+    combinedSentences.forEach((sentence) => els.resultList.appendChild(renderExampleItem(sentence)));
+  }
+
+  if (basisExamples.length) {
+    const section = document.createElement("div");
+    section.className = "section-label";
+    section.textContent = "근거별 예시문장";
+    els.resultList.appendChild(section);
+    basisExamples.forEach((entry, index) => {
+      const hasSentences = LEVELS.some((level) => (entry[level.field] || []).length);
+      if (!hasSentences) return;
+
+      const group = document.createElement("div");
+      group.className = `domain-card ${index === 0 ? "open" : ""}`;
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = "domain-header";
+      header.textContent = `${entry.title} · ${entry.category}`;
+      header.addEventListener("click", () => group.classList.toggle("open"));
+
+      const body = document.createElement("div");
+      body.className = "domain-body";
+      LEVELS.forEach((level) => {
+        const sentences = entry[level.field] || [];
+        if (!sentences.length) return;
+        body.insertAdjacentHTML("beforeend", `<div class="level-title">${level.title}</div>`);
+        sentences.forEach((sentence) => body.appendChild(renderExampleItem(sentence)));
+      });
+
+      group.append(header, body);
+      els.resultList.appendChild(group);
+    });
+    return;
+  }
+
   LEVELS.forEach((level) => {
     const sentences = examples[level.field] || [];
     if (!sentences.length) return;
-
     const group = document.createElement("div");
     group.className = "domain-card open";
-
     const header = document.createElement("button");
     header.type = "button";
     header.className = "domain-header";
     header.textContent = level.title;
     header.addEventListener("click", () => group.classList.toggle("open"));
-
     const body = document.createElement("div");
     body.className = "domain-body";
     sentences.forEach((sentence) => body.appendChild(renderExampleItem(sentence)));
-
     group.append(header, body);
     els.resultList.appendChild(group);
   });
@@ -295,7 +341,7 @@ function renderMetaOnly() {
     els.activityBasis.textContent = `${termLabel} 근거 - ${els.activityBasis.textContent}`;
   }
   els.officerFields.classList.toggle("hidden", !state.officerEnabled);
-  els.generateBtn.textContent = state.officerEnabled ? "임원 예시문장 생성" : "AI 예시문장 생성";
+  els.generateBtn.textContent = "AI 예시문장 생성";
   els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
 }
 
@@ -372,12 +418,52 @@ function mockSentencesForLevel(payload, level, count, officerBudget = null) {
   });
 }
 
+function distributeCount(total, itemCount) {
+  if (!itemCount) return [];
+  const base = Math.floor(total / itemCount);
+  const remainder = total % itemCount;
+  return Array.from({ length: itemCount }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
+function mockBasisLevelSentences(payload, item, level, count, officerBudget) {
+  if (!count || count < 1) return [];
+  if (item.id === "__officer") {
+    const usable = Math.min(count, officerBudget.remaining);
+    officerBudget.remaining -= usable;
+    return Array.from({ length: usable }, (_, index) => mockSentence(payload, item, level, index));
+  }
+  return Array.from({ length: count }, (_, index) => mockSentence(payload, item, level, index));
+}
+
+function mockBasisExamples(payload, activities) {
+  const excellentCounts = distributeCount(payload.counts.excellent, activities.length);
+  const goodCounts = distributeCount(payload.counts.good, activities.length);
+  const effortCounts = distributeCount(payload.counts.effort, activities.length);
+  const officerBudget = { remaining: payload.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
+  return activities.map((activity, index) => ({
+    ...activity,
+    excellent_sentences: mockBasisLevelSentences(payload, activity, "excellent", excellentCounts[index], officerBudget),
+    good_sentences: mockBasisLevelSentences(payload, activity, "good", goodCounts[index], officerBudget),
+    effort_sentences: mockBasisLevelSentences(payload, activity, "effort", effortCounts[index], officerBudget),
+  }));
+}
+
 function mockExamples(payload) {
   const officerBudget = { remaining: payload.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
+  const excellentSentences = mockSentencesForLevel(payload, "excellent", payload.counts.excellent, officerBudget);
+  const goodSentences = mockSentencesForLevel(payload, "good", payload.counts.good, officerBudget);
+  const effortSentences = mockSentencesForLevel(payload, "effort", payload.counts.effort, officerBudget);
+  const activities = payload.activityBasis?.length ? payload.activityBasis : [{ id: "default", title: "자율·자치활동", category: "자율·자치활동" }];
   return {
-    excellent_sentences: mockSentencesForLevel(payload, "excellent", payload.counts.excellent, officerBudget),
-    good_sentences: mockSentencesForLevel(payload, "good", payload.counts.good, officerBudget),
-    effort_sentences: mockSentencesForLevel(payload, "effort", payload.counts.effort, officerBudget),
+    excellent_sentences: excellentSentences,
+    good_sentences: goodSentences,
+    effort_sentences: effortSentences,
+    basis_examples: mockBasisExamples(payload, activities),
+    combined_sentences: [
+      `${payload.semester}학기 선택 근거 활동에 두루 참여하며 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
+      `${payload.semester}학기 여러 자율·자치활동에서 활동의 취지를 이해하고 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
+      `${payload.semester}학기 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력함.`,
+    ],
   };
 }
 
@@ -420,10 +506,23 @@ async function generateExamples() {
       good_sentences: json.good_sentences || json.examplesByLevel?.good_sentences || [],
       effort_sentences: json.effort_sentences || json.examplesByLevel?.effort_sentences || [],
     };
-    setState({ examplesByLevel });
+    setState({
+      examplesByLevel,
+      basisExamples: json.basis_examples || json.basisExamples || [],
+      combinedSentences: json.combined_sentences || json.combinedSentences || [],
+    });
     Harness.showToast(json.mock ? "샘플 예시문장을 생성했습니다." : "특기사항 예시문장을 생성했습니다.");
   } catch (_error) {
-    setState({ examplesByLevel: mockExamples(payload) });
+    const mock = mockExamples(payload);
+    setState({
+      examplesByLevel: {
+        excellent_sentences: mock.excellent_sentences,
+        good_sentences: mock.good_sentences,
+        effort_sentences: mock.effort_sentences,
+      },
+      basisExamples: mock.basis_examples,
+      combinedSentences: mock.combined_sentences,
+    });
     Harness.showToast("로컬 샘플 예시문장을 생성했습니다.");
   } finally {
     els.generateBtn.disabled = false;
@@ -435,6 +534,8 @@ function resetActivitySelection() {
   state.activityId = "";
   state.activityIds = [];
   state.examplesByLevel = { ...fallbackState.examplesByLevel };
+  state.basisExamples = [];
+  state.combinedSentences = [];
 }
 
 function bindEvents() {

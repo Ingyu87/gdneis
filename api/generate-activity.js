@@ -173,12 +173,65 @@ function buildMockExamples(body) {
   const activityItems = getActivityItemsWithOfficer(body);
   const counts = body.counts || {};
   const officerBudget = { remaining: body.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
+  const excellentSentences = buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3, officerBudget);
+  const goodSentences = buildSentencesForLevel(body, activityItems, "good", counts.good || 3, officerBudget);
+  const effortSentences = buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3, officerBudget);
 
   return {
-    excellent_sentences: buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3, officerBudget),
-    good_sentences: buildSentencesForLevel(body, activityItems, "good", counts.good || 3, officerBudget),
-    effort_sentences: buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3, officerBudget),
+    excellent_sentences: excellentSentences,
+    good_sentences: goodSentences,
+    effort_sentences: effortSentences,
+    basis_examples: buildBasisExamples(body, activityItems),
+    combined_sentences: buildCombinedSentences(body, activityItems),
   };
+}
+
+function distributeCount(total, itemCount) {
+  if (!itemCount) return [];
+  const base = Math.floor(total / itemCount);
+  const remainder = total % itemCount;
+  return Array.from({ length: itemCount }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
+function buildBasisLevelSentences(body, item, level, count, officerBudget) {
+  if (!count || count < 1) return [];
+  if (item.id === "__officer") {
+    const usable = Math.min(count, officerBudget.remaining);
+    officerBudget.remaining -= usable;
+    return Array.from({ length: usable }, (_, index) => buildMockSentence(body, item, level, index));
+  }
+  return Array.from({ length: count }, (_, index) => buildMockSentence(body, item, level, index));
+}
+
+function buildBasisExamples(body, items) {
+  const counts = body.counts || {};
+  const excellentCounts = distributeCount(counts.excellent || 3, items.length);
+  const goodCounts = distributeCount(counts.good || 3, items.length);
+  const effortCounts = distributeCount(counts.effort || 3, items.length);
+  const officerBudget = { remaining: body.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
+
+  return items.map((item, index) => ({
+    id: item.id,
+    category: item.category,
+    title: item.title,
+    basis: item.basis,
+    excellent_sentences: buildBasisLevelSentences(body, item, "excellent", excellentCounts[index], officerBudget),
+    good_sentences: buildBasisLevelSentences(body, item, "good", goodCounts[index], officerBudget),
+    effort_sentences: buildBasisLevelSentences(body, item, "effort", effortCounts[index], officerBudget),
+  }));
+}
+
+function buildCombinedSentences(body, items) {
+  const term = semesterLabel(body);
+  const regularItems = items.filter((item) => item.id !== "__officer");
+  const titles = regularItems.slice(0, 4).map((item) => item.title).join(", ");
+  const officer = buildOfficerActivity(body);
+  const officerText = officer ? ` ${officerLabel(body)}으로서 맡은 역할을 책임감 있게 수행하고,` : "";
+  return [
+    `${term} ${titles} 활동에 두루 참여하며${officerText} 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
+    `${term} 여러 자율·자치활동에서 활동의 취지를 이해하고 독서, 인성, 문예체 등 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
+    `${term} 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력하며 배운 내용을 생활 속 실천으로 연결함.`,
+  ];
 }
 
 function isOfficerSentence(body, sentence) {
@@ -208,6 +261,25 @@ function ensureRequestedCount(body, parsed, field, level, count, officerBudget) 
   return merged.slice(0, count);
 }
 
+function ensureBasisExamples(body, parsed) {
+  const items = getActivityItemsWithOfficer(body);
+  if (Array.isArray(parsed.basis_examples) && parsed.basis_examples.length) {
+    return parsed.basis_examples.map((entry, index) => {
+      const item = items.find((candidate) => candidate.id === entry.id) || items[index] || entry;
+      return {
+        id: item.id || entry.id || `basis-${index}`,
+        category: item.category || entry.category || "",
+        title: item.title || entry.title || "",
+        basis: item.basis || entry.basis || "",
+        excellent_sentences: Array.isArray(entry.excellent_sentences) ? entry.excellent_sentences : [],
+        good_sentences: Array.isArray(entry.good_sentences) ? entry.good_sentences : [],
+        effort_sentences: Array.isArray(entry.effort_sentences) ? entry.effort_sentences : [],
+      };
+    });
+  }
+  return buildBasisExamples(body, items);
+}
+
 function parseJsonSafely(rawText) {
   const text = String(rawText || "").trim();
 
@@ -234,7 +306,7 @@ async function callGemini(apiKey, body) {
   const activityItems = getActivityItemsWithOfficer(body);
   const selectedTerm = semesterLabel(body);
   const activityText = activityItems
-    .map((item) => `- ${item.category || ""} / ${item.title || ""}\n  근거: ${item.basis || ""}\n  출처: ${item.source || "reference MD"}`)
+    .map((item) => `- id: ${item.id || ""}\n  ${item.category || ""} / ${item.title || ""}\n  근거: ${item.basis || ""}\n  출처: ${item.source || "reference MD"}`)
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
   const counts = body.counts || {};
@@ -258,10 +330,12 @@ async function callGemini(apiKey, body) {
 - 과장, 단정, 부정적 표현은 쓰지 않습니다.
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
 - 선택된 활동 근거별로 문장을 고르게 만듭니다. 요청 문장 수가 근거 수보다 많으면 근거를 순환하여 빠지는 근거가 없게 합니다.
+- 근거별 예시문장은 각 활동 근거 카드에 넣을 수 있도록 basis_examples에 활동 근거별로 묶어 작성합니다.
+- 종합 예시문장은 여러 활동 근거를 자연스럽게 결합하여 combined_sentences에 3개 작성합니다.
 - ${countRule}
 - ${officerRule}
 
-응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]} JSON만 작성합니다.
+응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[], "basis_examples": [{"id": string, "title": string, "category": string, "basis": string, "excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]}], "combined_sentences": string[]} JSON만 작성합니다.
 `;
   const userPrompt = `
 학년도: ${body.schoolYear}
@@ -296,10 +370,18 @@ ${activityText}
   const parsed = parseJsonSafely(text);
   const officerBudget = { remaining: isOfficerMode ? 2 : Number.POSITIVE_INFINITY };
 
+  const excellentSentences = ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3, officerBudget);
+  const goodSentences = ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3, officerBudget);
+  const effortSentences = ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3, officerBudget);
+
   return {
-    excellent_sentences: ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3, officerBudget),
-    good_sentences: ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3, officerBudget),
-    effort_sentences: ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3, officerBudget),
+    excellent_sentences: excellentSentences,
+    good_sentences: goodSentences,
+    effort_sentences: effortSentences,
+    basis_examples: ensureBasisExamples(body, parsed),
+    combined_sentences: Array.isArray(parsed.combined_sentences) && parsed.combined_sentences.length
+      ? parsed.combined_sentences.slice(0, 3)
+      : buildCombinedSentences(body, getActivityItemsWithOfficer(body)),
   };
 }
 
