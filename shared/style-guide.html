@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEIS 톤 통일 디자인 시스템 — 스타일 가이드</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/neis-theme.css">
+  <style>
+    .guide-section { margin: 1.5rem 0; }
+    .guide-section h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--neis-text); }
+    .swatches { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { width: 120px; }
+    .swatch .box { height: 48px; border-radius: 0.375rem; border: 1px solid var(--neis-border-light); }
+    .swatch .label { font-size: 0.75rem; margin-top: 0.25rem; color: var(--neis-text-muted); }
+    .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .wrap { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; display: flex; flex-direction: column; gap: 1.5rem; }
+  </style>
+</head>
+<body class="neis-body">
+
+  <!-- 최상단 헤더 -->
+  <header class="neis-app-header">
+    <div class="header-left">
+      <span class="school-badge">서울가동초등학교</span>
+      <span class="app-title">나이스 입력 도우미</span>
+    </div>
+    <div class="header-right">
+      <span>백인규(ingyu87)</span>
+      <span>2026-06-15</span>
+    </div>
+  </header>
+
+  <!-- 탭 내비게이션 -->
+  <nav class="neis-tabbar">
+    <button class="neis-tab active">학기말 종합의견</button>
+    <button class="neis-tab">자율·자치활동 관리</button>
+    <button class="neis-tab">행동특성 및 종합의견</button>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- 색상 토큰 -->
+    <section class="guide-section neis-card">
+      <h2>색상 토큰</h2>
+      <div class="swatches">
+        <div class="swatch"><div class="box" style="background:var(--neis-navy)"></div><div class="label">--neis-navy</div></div>
+        <div class="swatch"><div class="box" style="background:var(--neis-blue)"></div><div class="label">--neis-blue</div></div>
+        <div class="swatch"><div class="box" style="background:var(--neis-blue-bright)"></div><div class="label">--neis-blue-bright</div></div>
+        <div class="swatch"><div class="box neis-accent-gradient"></div><div class="label">accent-gradient</div></div>
+        <div class="swatch"><div class="box" style="background:var(--neis-bg)"></div><div class="label">--neis-bg</div></div>
+        <div class="swatch"><div class="box" style="background:var(--neis-border)"></div><div class="label">--neis-border</div></div>
+      </div>
+    </section>
+
+    <!-- 카드 + 타이틀 + 서브탭 -->
+    <section class="neis-card">
+      <div class="neis-card-title">자율·자치활동 특기사항 작성</div>
+
+      <div class="neis-subtabs">
+        <button class="neis-subtab active">학생부자료기록</button>
+        <button class="neis-subtab">누가기록</button>
+      </div>
+
+      <p class="neis-note">※ 특기사항은 자율/동아리활동의 특기사항을 통합한 내용입니다.</p>
+
+      <div class="neis-filter-row" style="margin-top:1rem">
+        <label class="required">학년도</label>
+        <select><option>2026</option></select>
+        <label class="required">학년</label>
+        <select><option>4</option></select>
+        <label class="required">반</label>
+        <select><option>2</option></select>
+        <button class="btn-primary">조회</button>
+      </div>
+
+      <table class="neis-table">
+        <thead>
+          <tr>
+            <th style="width:2.5rem"><input type="checkbox"></th>
+            <th style="width:3rem">번호</th>
+            <th style="width:6rem">성명</th>
+            <th>특기사항</th>
+            <th style="width:5rem">글자수</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>1</td>
+            <td><span class="student-link">강태현</span></td>
+            <td><input type="text" placeholder="특기사항을 입력하세요"></td>
+            <td class="byte-counter">0 Byte</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>2</td>
+            <td><span class="student-link">금유섭</span></td>
+            <td><input type="text" placeholder="특기사항을 입력하세요"></td>
+            <td class="byte-counter">0 Byte</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn-primary">AI 특기사항 생성</button>
+        <button class="btn-outline">일괄적용</button>
+        <button class="btn-danger-outline">삭제</button>
+      </div>
+    </section>
+
+    <!-- AI 결과 카드 (복사용) -->
+    <section class="neis-card">
+      <div class="neis-card-title">AI 결과 카드 (result-item)</div>
+      <div style="display:flex; flex-direction:column; gap:0.75rem">
+        <div class="result-item">친구의 의견을 경청하고 자신의 생각을 또렷하게 표현하며 학급 토의 활동에 적극적으로 참여함.</div>
+        <div class="result-item clicked">✅ 복사 완료!</div>
+      </div>
+    </section>
+
+    <!-- 로더 -->
+    <section class="neis-card">
+      <div class="neis-card-title">로더</div>
+      <div style="display:flex; align-items:center; gap:0.75rem">
+        <div class="neis-loader"></div>
+        <span class="neis-note">AI가 문장을 생성 중입니다...</span>
+      </div>
+    </section>
+
+  </div>
+
+</body>
+</html>
