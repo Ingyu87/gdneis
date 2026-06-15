@@ -19,7 +19,7 @@ function inferActivityFocus(item) {
     };
   }
 
-  if (/독서|인문|하브루타|토론|질문/.test(text)) {
+  if (/독서|인문|하브루타|토론|질문|생각통통/.test(text)) {
     return {
       noun: "독서·토론 활동",
       verbs: ["질문을 만들고 생각을 나눔", "친구의 의견을 경청함", "근거를 들어 자신의 생각을 표현함"],
@@ -33,9 +33,9 @@ function inferActivityFocus(item) {
     };
   }
 
-  if (/예술|문화|가야금|핸드벨|우쿨렐레|표현/.test(text)) {
+  if (/예술|문예체|가야금|오카리나|우쿠렐레|축구|배드민턴|줄넘기|표현/.test(text)) {
     return {
-      noun: "문화예술 활동",
+      noun: "문예체 활동",
       verbs: ["표현 활동에 참여함", "친구와 호흡을 맞춤", "연습 과정에서 맡은 역할을 수행함"],
     };
   }
@@ -43,7 +43,7 @@ function inferActivityFocus(item) {
   if (/동아리/.test(text)) {
     return {
       noun: "동아리활동",
-      verbs: ["활동 주제에 관심을 가지고 참여함", "맡은 역할을 수행함", "활동 결과를 함께 나눔"],
+      verbs: ["활동 주제에 관심을 가지고 참여함", "맡은 역할을 수행함", "활동 과정을 돌아봄"],
     };
   }
 
@@ -58,7 +58,7 @@ function buildOfficerSuggestion(body) {
   const activityItems = normalizeActivityItems(body);
   const hasCouncil = activityItems.some((item) => /자치|회의|규칙|학생자치|학급/.test(`${item.title || ""} ${item.basis || ""}`));
   const roleAction = hasCouncil
-    ? "학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 자신의 역할을 책임감 있게 수행함."
+    ? "학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함."
     : "공동체 활동에서 친구들의 의견을 경청하고 맡은 역할을 책임감 있게 수행함.";
 
   return `${officer}으로 활동하며 ${roleAction}`;
@@ -89,10 +89,10 @@ function buildMockExamples(body) {
     levelExamples.excellent_sentences.push(
       `${item.title}에서 ${focus.verbs[1]}으로써 활동 과정에서 드러나는 협력적 태도와 참여도가 돋보임.`,
       `${item.title} 과정에서 활동의 취지를 이해하고 친구들과 협력하여 ${focus.noun}에 적극적으로 참여함.`,
-      `${item.title}에 주도적으로 참여하여 자신의 역할을 책임감 있게 수행하고 공동체 활동에 기여함.`
+      `${item.title}에 주도적으로 참여하여 맡은 역할을 책임감 있게 수행하고 공동체 활동에 기여함.`
     );
     levelExamples.good_sentences.push(
-      `${item.title}에 참여하며 ${focus.verbs[2]}으로써 학교교육계획에 따른 활동을 성실히 수행함.`,
+      `${item.title}에 참여하며 ${focus.verbs[2]}으로써 학년교육과정에 따른 활동을 성실히 수행함.`,
       `${item.title} 과정에서 친구들과 생각을 나누고 공동의 활동이 원활하게 이루어지도록 기여함.`,
       `${item.title}의 기본 취지를 이해하고 활동 과정에 꾸준히 참여함.`
     );
@@ -140,24 +140,25 @@ async function callGemini(apiKey, body) {
   const isOfficerMode = Boolean(body.officer?.enabled);
   const counts = body.counts || {};
   const countRule = isOfficerMode
-    ? "임원 활동도 상·중·하 수준별 예시문장을 작성합니다."
+    ? "임원 활동은 상·중·하 각 1개 예시문장을 작성합니다."
     : `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 작성합니다.`;
   const officerRule = isOfficerMode
     ? `임원 표기는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
 
   const systemPrompt = `
-당신은 초등학교 담임교사의 학교생활기록부 창의적 체험활동상황 작성을 돕습니다.
+당신은 초등학교 담임교사의 학교생활기록부 창의적 체험활동 상황 작성을 돕습니다.
 2026 학교생활기록부 기재요령에 따라 자율·자치활동 특기사항 예시문장을 작성합니다.
 
 기재 기준:
 - 초등학교는 자율·자치활동과 동아리활동 특기사항을 통합하여 문장으로 입력합니다.
-- 활동 결과보다 활동 과정에서 드러난 개별 행동 특성, 참여도, 협력도, 활동실적, 실제 역할을 중심으로 씁니다.
+- 선택된 학년의 활동 근거에 포함된 내용만 사용합니다. 다른 학년의 동아리·특색활동·악기·운동을 섞지 않습니다.
 - 정규교육과정 또는 학교교육계획에 근거한 활동만 언급합니다.
-- 과장, 단정, 부정적 낙인 표현은 쓰지 않습니다.
-- 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
-- 상 수준은 활동 이해, 자발성, 협력, 책임 있는 실천이 분명하게 드러나게 씁니다.
-- 중 수준은 활동에 꾸준히 참여하고 기본 역할을 성실히 수행한 모습이 드러나게 씁니다.
+- 활동 결과보다 과정에서 드러난 개별 행동 특성, 참여도, 협력성, 실제 역할을 중심으로 씁니다.
+- 과장, 단정, 부정적 표현은 쓰지 않습니다.
+- 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝맺습니다.
+- 상 수준은 활동 이해, 자발성, 협력, 책임 또는 실천이 분명하게 드러나게 씁니다.
+- 중 수준은 활동에 꾸준히 참여하고 기본 역할을 성실히 수행한 모습을 씁니다.
 - 하 수준은 안내에 따라 참여하고 활동 내용을 익혀 가는 모습을 긍정적으로 씁니다.
 - ${countRule}
 - ${officerRule}
@@ -215,7 +216,7 @@ async function handler(req, res) {
   }
 
   if (body.officer?.enabled && (!body.officer.term || !body.officer.type || !body.officer.title || !body.officer.period)) {
-    return res.status(400).json({ error: "임원 활동의 학기, 종류, 직책, 재임기간이 필요합니다." });
+    return res.status(400).json({ error: "임원 활동은 학기, 종류, 직책, 임원 기간이 필요합니다." });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;

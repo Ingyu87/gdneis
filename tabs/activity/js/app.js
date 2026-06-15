@@ -68,8 +68,8 @@ function normalizeSavedState() {
   }
   if (!TERM_PERIODS[state.officerTerm]) state.officerTerm = "1학기";
   if (!["학급", "학년", "전교"].includes(state.officerType)) state.officerType = "학급";
-  if (!state.officerTitle || /�|\?/.test(state.officerTitle)) state.officerTitle = "회장";
-  if (!state.officerPeriod || /�|\?/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
+  if (!state.officerTitle || /[?占]/.test(state.officerTitle)) state.officerTitle = "회장";
+  if (!state.officerPeriod || /[?占]/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
 
   state.excellent = Number.parseInt(state.excellent, 10) || fallbackState.excellent;
   state.good = Number.parseInt(state.good, 10) || fallbackState.good;
@@ -89,7 +89,7 @@ function normalizeSavedState() {
 }
 
 function getActivities() {
-  const common = themes.common.filter((item) => item.grades.includes(state.grade));
+  const common = (themes.common || []).filter((item) => item.grades?.includes(state.grade));
   const gradeSpecific = themes.byGrade[state.grade] || [];
   return [...common, ...gradeSpecific];
 }
@@ -274,9 +274,9 @@ function mockExamples(payload) {
   if (payload.officer?.enabled) {
     const officer = `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
     return {
-      excellent_sentences: [`${officer}으로 활동하며 학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 자신의 역할을 책임감 있게 수행함.`],
-      good_sentences: [`${officer}으로 활동하며 학급 자치활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
-      effort_sentences: [`${officer}으로 활동하며 학급 자치활동의 역할을 이해하고 회의와 공동체 활동에 참여하려고 노력함.`],
+      excellent_sentences: [`${officer}으로 활동하며 학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함.`],
+      good_sentences: [`${officer}으로 활동하며 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
+      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 학급 공동체 활동에 참여하려고 노력함.`],
     };
   }
 
@@ -284,7 +284,7 @@ function mockExamples(payload) {
     excellent_sentences: [
       `${activity} 과정에서 활동의 취지를 이해하고 친구들의 의견을 조율하며 공동의 문제 해결에 적극적으로 참여함.`,
       `${activity}에 주도적으로 참여하여 학급 공동체의 약속을 실천하고 활동이 원활하게 이루어지도록 기여함.`,
-      `${activity}에서 자신의 역할을 책임감 있게 수행하고 친구들과 협력하여 배움과 실천을 연결함.`,
+      `${activity}에서 맡은 역할을 책임감 있게 수행하고 친구들과 협력하여 배운 점을 실천으로 연결함.`,
     ].slice(0, payload.counts.excellent),
     good_sentences: [
       `${activity} 과정에 꾸준히 참여하며 친구의 의견을 듣고 자신의 생각을 차분히 표현함.`,
