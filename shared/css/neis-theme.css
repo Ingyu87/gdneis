@@ -40,6 +40,18 @@ body.neis-body {
   color: var(--neis-text);
 }
 
+.hidden {
+  display: none !important;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
 /* ===================== 최상단 헤더 ===================== */
 .neis-app-header {
   display: flex;
@@ -171,6 +183,57 @@ body.neis-body {
   color: var(--neis-text-muted);
   font-size: 0.8125rem;
   line-height: 1.6;
+}
+
+.section-label {
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.choice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 1px solid var(--neis-border);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+}
+
+.choice-item input {
+  margin-top: 0.2rem;
+}
+
+.choice-item.active {
+  border-color: var(--neis-blue);
+  background: #eef4fb;
+}
+
+.choice-item-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.choice-item-meta {
+  color: var(--neis-text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
 }
 
 /* ===================== 필터 영역 ===================== */
@@ -343,6 +406,32 @@ body.neis-body {
   opacity: 0.8;
   transform: none;
   box-shadow: none;
+}
+
+.neis-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--neis-navy);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.neis-toast.visible {
+  opacity: 1;
+}
+
+.neis-toast[data-tone="error"] {
+  background: #991b1b;
 }
 
 /* ===================== 로더 ===================== */

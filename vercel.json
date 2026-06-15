@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "api/generate.js": {
+      "maxDuration": 60
+    },
+    "api/performance-design.js": {
+      "maxDuration": 60
+    },
+    "api/lesson-plan.js": {
+      "maxDuration": 60
+    },
+    "api/generate-activity.js": {
+      "maxDuration": 60
+    },
+    "api/generate-behavior.js": {
+      "maxDuration": 60
+    }
+  }
+}

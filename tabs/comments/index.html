@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학기말 종합의견</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/css/neis-theme.css">
+  <style>
+    body { margin: 0; padding: 0; }
+    .comments-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); gap: 1rem; }
+    .result-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .domain-card { border: 1px solid var(--neis-border-light); border-radius: 0.5rem; background: #fff; overflow: hidden; }
+    .domain-header { width: 100%; border: 0; background: #f8fafc; padding: 0.8rem 1rem; text-align: left; font: inherit; font-weight: 700; color: var(--neis-navy); cursor: pointer; }
+    .domain-body { display: none; padding: 0.75rem; border-top: 1px solid var(--neis-border-light); }
+    .domain-card.open .domain-body { display: block; }
+    .level-title { font-size: 0.82rem; font-weight: 700; color: var(--neis-text-muted); margin: 0.75rem 0 0.35rem; }
+    .level-title:first-child { margin-top: 0; }
+    .editor { width: 100%; min-height: 190px; box-sizing: border-box; resize: vertical; border: 1px solid var(--neis-border); border-radius: 0.5rem; padding: 0.75rem; font: inherit; line-height: 1.6; }
+    .section-divider { border-top: 1px solid var(--neis-border-light); padding-top: 1rem; margin-top: 1rem; }
+    .meta-line { color: var(--neis-text-muted); font-size: 0.78rem; line-height: 1.5; }
+    @media (max-width: 900px) { .comments-layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="neis-body">
+  <section class="neis-card">
+    <div class="neis-card-title">학기말 종합의견 작성</div>
+    <p class="neis-note">기존 생성기와 같은 방식으로 학년·과목·수준별 개수를 선택해 영역별 후보를 만들고, 영역별 문장을 조합해 종합의견을 만듭니다.</p>
+
+    <div class="comments-layout section-divider">
+      <form id="comments-form">
+        <div class="neis-filter-row">
+          <label for="grade-select" class="required">학년</label>
+          <select id="grade-select"></select>
+
+          <label for="subject-select" class="required">과목</label>
+          <select id="subject-select"></select>
+        </div>
+
+        <div class="neis-filter-row">
+          <label for="excellent-count">상 문장 수</label>
+          <input id="excellent-count" type="number" min="0" max="25" value="3">
+          <label for="good-count">중 문장 수</label>
+          <input id="good-count" type="number" min="0" max="25" value="3">
+          <label for="effort-count">하 문장 수</label>
+          <input id="effort-count" type="number" min="0" max="25" value="3">
+          <label for="combined-count">종합 수</label>
+          <input id="combined-count" type="number" min="1" max="25" value="5">
+        </div>
+
+        <div class="button-row">
+          <button class="btn-primary" type="submit" id="generate-btn">1. 영역별 후보 생성</button>
+          <button class="btn-outline" type="button" id="combine-btn" disabled>2. 종합의견 조합</button>
+          <button class="btn-danger-outline" type="button" id="clear-btn">저장 데이터 초기화</button>
+        </div>
+
+        <div class="section-divider">
+          <div class="section-label">종합의견 조합 후보</div>
+          <div id="combined-list" class="result-list">
+            <p class="neis-note">영역별 후보 생성 후 종합의견 조합 버튼을 누르세요.</p>
+          </div>
+        </div>
+
+        <div class="section-divider">
+          <div class="section-label">영역별 후보 문장</div>
+          <div id="domain-results" class="result-list">
+            <p class="neis-note">영역별 후보 생성 버튼을 누르면 평가 영역별 문장이 표시됩니다.</p>
+          </div>
+        </div>
+      </form>
+
+      <aside>
+        <label class="section-label" for="final-text">최종 종합의견</label>
+        <textarea id="final-text" class="editor" placeholder="조합 후보나 영역별 후보를 선택하거나 직접 작성하세요."></textarea>
+        <div class="meta-line"><span id="byte-count">0 Byte</span> · 최종 종합의견을 클릭하면 바로 복사됩니다.</div>
+        <div class="button-row">
+          <button class="btn-primary" type="button" id="copy-final-btn">최종 종합의견 복사</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <script src="../../shared/js/harness.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
