@@ -25,7 +25,7 @@
 <body class="neis-body">
   <section class="neis-card">
     <div class="neis-card-title">학기말 종합의견 작성</div>
-    <p class="neis-note">기존 생성기와 같은 방식으로 학년·과목·수준별 개수를 선택해 영역별 후보를 만들고, 영역별 문장을 조합해 종합의견을 만듭니다.</p>
+    <p class="neis-note">기존 생성기와 같은 방식으로 학년·과목·수준별 개수를 선택해 영역별 예시문장을 만들고, 영역별 문장을 조합해 종합의견을 만듭니다.</p>
 
     <div class="comments-layout section-divider">
       <form id="comments-form">
@@ -49,30 +49,30 @@
         </div>
 
         <div class="button-row">
-          <button class="btn-primary" type="submit" id="generate-btn">1. 영역별 후보 생성</button>
+          <button class="btn-primary" type="submit" id="generate-btn">1. 영역별 예시문장 생성</button>
           <button class="btn-outline" type="button" id="combine-btn" disabled>2. 종합의견 조합</button>
           <button class="btn-danger-outline" type="button" id="clear-btn">저장 데이터 초기화</button>
         </div>
 
         <div class="section-divider">
-          <div class="section-label">종합의견 조합 후보</div>
+          <div class="section-label">종합의견 조합 예시문장</div>
           <div id="combined-list" class="result-list">
-            <p class="neis-note">영역별 후보 생성 후 종합의견 조합 버튼을 누르세요. 후보를 누르면 최종 종합의견 뒤에 이어 붙습니다.</p>
+            <p class="neis-note">영역별 예시문장 생성 후 종합의견 조합 버튼을 누르세요. 예시문장을 누르면 최종 종합의견 뒤에 이어 붙습니다.</p>
           </div>
         </div>
 
         <div class="section-divider">
-          <div class="section-label">영역별 후보 문장</div>
+          <div class="section-label">영역별 예시문장</div>
           <div id="domain-results" class="result-list">
-            <p class="neis-note">영역별 후보 생성 버튼을 누르면 평가 영역별 문장이 표시됩니다. 후보를 누르면 최종 종합의견 뒤에 이어 붙습니다.</p>
+            <p class="neis-note">영역별 예시문장 생성 버튼을 누르면 평가 영역별 문장이 표시됩니다. 예시문장을 누르면 최종 종합의견 뒤에 이어 붙습니다.</p>
           </div>
         </div>
       </form>
 
       <aside>
         <label class="section-label" for="final-text">최종 종합의견</label>
-        <textarea id="final-text" class="editor" placeholder="조합 후보나 영역별 후보를 이어 붙이거나 직접 작성하세요."></textarea>
-        <div class="meta-line"><span id="byte-count">0 Byte</span> · 후보를 누르면 이 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
+        <textarea id="final-text" class="editor" placeholder="조합 예시문장이나 영역별 예시문장을 이어 붙이거나 직접 작성하세요."></textarea>
+        <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장을 누르면 이 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
         <div class="button-row">
           <button class="btn-primary" type="button" id="copy-final-btn">최종 종합의견 복사</button>
         </div>

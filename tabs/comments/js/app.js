@@ -136,7 +136,7 @@ function renderDomainResults() {
   const generated = state.generatedByDomain || {};
 
   if (!Object.keys(generated).length) {
-    els.domainResults.innerHTML = '<p class="neis-note">영역별 후보 생성 버튼을 누르면 평가 영역별 문장이 표시됩니다.</p>';
+    els.domainResults.innerHTML = '<p class="neis-note">영역별 예시문장 생성 버튼을 누르면 평가 영역별 문장이 표시됩니다.</p>';
     return;
   }
 
@@ -156,13 +156,13 @@ function renderDomainResults() {
     body.className = "domain-body";
     body.innerHTML = `
       <p class="neis-note">${entry.standard || ""}</p>
-      <div class="level-title">상 후보</div>
+      <div class="level-title">상 예시문장</div>
     `;
-    (data.excellent_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "상 후보를")));
-    body.insertAdjacentHTML("beforeend", '<div class="level-title">중 후보</div>');
-    (data.good_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "중 후보를")));
-    body.insertAdjacentHTML("beforeend", '<div class="level-title">하 후보</div>');
-    (data.effort_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "하 후보를")));
+    (data.excellent_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "상 예시문장을")));
+    body.insertAdjacentHTML("beforeend", '<div class="level-title">중 예시문장</div>');
+    (data.good_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "중 예시문장을")));
+    body.insertAdjacentHTML("beforeend", '<div class="level-title">하 예시문장</div>');
+    (data.effort_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "하 예시문장을")));
 
     card.append(header, body);
     els.domainResults.appendChild(card);
@@ -172,11 +172,11 @@ function renderDomainResults() {
 function renderCombined() {
   els.combinedList.innerHTML = "";
   if (!state.combinedSuggestions.length) {
-    els.combinedList.innerHTML = '<p class="neis-note">영역별 후보 생성 후 종합의견 조합 버튼을 누르세요.</p>';
+    els.combinedList.innerHTML = '<p class="neis-note">영역별 예시문장 생성 후 종합의견 조합 버튼을 누르세요.</p>';
     return;
   }
   state.combinedSuggestions.forEach((sentence) => {
-    els.combinedList.appendChild(renderSentenceItem(sentence, "종합의견 후보를"));
+    els.combinedList.appendChild(renderSentenceItem(sentence, "종합의견 예시문장을"));
   });
 }
 
@@ -269,8 +269,8 @@ async function generateDomains() {
   renderDomainResults();
   renderMetaOnly();
   els.generateBtn.disabled = false;
-  els.generateBtn.textContent = "1. 영역별 후보 생성";
-  Harness.showToast("영역별 후보 문장을 생성했습니다.");
+  els.generateBtn.textContent = "1. 영역별 예시문장 생성";
+  Harness.showToast("영역별 예시문장을 생성했습니다.");
 }
 
 function pickRandom(list) {
@@ -283,7 +283,7 @@ function combineOpinions() {
   const generated = state.generatedByDomain || {};
   const domains = Object.values(generated);
   if (!domains.length) {
-    Harness.showToast("먼저 영역별 후보를 생성하세요.", "error");
+    Harness.showToast("먼저 영역별 예시문장을 생성하세요.", "error");
     return;
   }
 
@@ -299,7 +299,7 @@ function combineOpinions() {
   state.combinedSuggestions = result;
   persist();
   renderCombined();
-  Harness.showToast("종합의견 후보를 조합했습니다.");
+  Harness.showToast("종합의견 예시문장을 조합했습니다.");
 }
 
 async function copyFinal() {

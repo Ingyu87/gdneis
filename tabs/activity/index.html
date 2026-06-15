@@ -46,28 +46,6 @@
       resize: vertical;
     }
 
-    .chip-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .chip {
-      border: 1px solid var(--neis-border);
-      border-radius: 999px;
-      background: #fff;
-      padding: 0.38rem 0.7rem;
-      font-size: 0.8125rem;
-      cursor: pointer;
-    }
-
-    .chip.active {
-      border-color: var(--neis-blue);
-      background: #eef4fb;
-      color: var(--neis-blue);
-      font-weight: 700;
-    }
-
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -120,7 +98,7 @@
 <body class="neis-body">
   <section class="neis-card">
     <div class="neis-card-title">자율·자치활동 특기사항 작성</div>
-    <p class="neis-note">학교교육계획과 학년교육과정에 근거한 활동을 선택하고, 후보를 최종 문장 뒤에 이어 붙인 뒤 수정해 복사합니다.</p>
+    <p class="neis-note">학교교육계획과 학년교육과정에 근거한 활동을 선택하고, 상·중·하 예시문장을 만든 뒤 최종 문장에 이어 붙여 수정합니다.</p>
 
     <div class="activity-layout section-divider">
       <form id="activity-form">
@@ -147,10 +125,13 @@
           <div id="activity-basis" class="meta-line"></div>
         </div>
 
-        <div class="field-stack">
-          <label>참여 방식</label>
-          <div id="style-chips" class="chip-grid"></div>
-          <div class="meta-line">일반 활동 후보에만 반영됩니다. 활동 근거와 어울리는 표현만 선택하세요.</div>
+        <div class="neis-filter-row">
+          <label for="excellent-count">상 문장 수</label>
+          <input id="excellent-count" type="number" min="0" max="25" value="3">
+          <label for="good-count">중 문장 수</label>
+          <input id="good-count" type="number" min="0" max="25" value="3">
+          <label for="effort-count">하 문장 수</label>
+          <input id="effort-count" type="number" min="0" max="25" value="3">
         </div>
 
         <div class="section-divider">
@@ -187,7 +168,7 @@
         </div>
 
         <div class="button-row">
-          <button class="btn-primary" type="submit" id="generate-btn">AI 특기사항 생성</button>
+          <button class="btn-primary" type="submit" id="generate-btn">AI 예시문장 생성</button>
           <button class="btn-outline" type="button" id="sample-btn">샘플 입력</button>
           <button class="btn-danger-outline" type="button" id="clear-btn">저장 데이터 초기화</button>
         </div>
@@ -196,17 +177,17 @@
       <aside>
         <div class="field-stack">
           <label for="final-text">최종 편집 문장</label>
-          <textarea id="final-text" class="editor" placeholder="생성 후보를 이어 붙이거나 직접 문장을 작성하세요."></textarea>
-          <div class="meta-line"><span id="byte-count">0 Byte</span> · 후보를 누르면 이 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
+          <textarea id="final-text" class="editor" placeholder="예시문장을 이어 붙이거나 직접 문장을 작성하세요."></textarea>
+          <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장을 누르면 이 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
         </div>
         <div class="button-row">
           <button class="btn-primary" type="button" id="copy-final-btn">최종 문장 복사</button>
         </div>
 
         <div class="section-divider">
-          <div class="section-label">생성 후보</div>
+          <div class="section-label">예시문장</div>
           <div id="result-list" class="suggestions">
-            <p class="neis-note">AI 특기사항 생성 버튼을 누르면 후보 문장이 표시됩니다. 후보를 누르면 최종 문장 뒤에 이어 붙습니다.</p>
+            <p class="neis-note">AI 예시문장 생성 버튼을 누르면 상·중·하 예시문장이 표시됩니다. 예시문장을 누르면 최종 문장 뒤에 이어 붙습니다.</p>
           </div>
         </div>
       </aside>

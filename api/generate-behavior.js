@@ -51,7 +51,7 @@ async function callGemini(apiKey, inputText) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
   const systemPrompt = `
 당신은 초등학교 담임교사의 학교생활기록부 행동특성 및 종합의견 작성을 돕습니다.
-입력된 관찰 기록을 바탕으로 강점 중심 후보 5개와 성장 코칭 후보 5개를 작성합니다.
+입력된 관찰 기록을 바탕으로 강점 중심 예시문장 5개와 성장 코칭 예시문장 5개를 작성합니다.
 
 작성 원칙:
 - 초등학교 학교생활기록부 문체로 간결하게 작성합니다.

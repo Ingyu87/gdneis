@@ -71,7 +71,7 @@ async function callGemini(apiKey, body) {
 
   const systemPrompt = `
 당신은 초등학교 담임교사의 학교생활기록부 학기말 종합의견 작성을 돕습니다.
-교육과정 성취기준과 교사 관찰 메모를 바탕으로 교사가 고쳐 쓸 수 있는 후보 문장을 작성합니다.
+교육과정 성취기준과 교사 관찰 메모를 바탕으로 교사가 고쳐 쓸 수 있는 예시문장을 작성합니다.
 과장, 순위화, 단정적인 평가는 피하고 관찰 가능한 학습 태도와 성장 모습을 씁니다.
 문장은 학교생활기록부 문체로 '~함', '~보임', '~키워 감'처럼 끝냅니다.
 응답은 반드시 {"suggestions": string[]} JSON으로만 작성합니다.
@@ -84,7 +84,7 @@ async function callGemini(apiKey, body) {
 ${domainText}
 교사 관찰 메모: ${body.teacherNote || "없음"}
 
-서로 다른 학기말 종합의견 후보 문장 5개를 생성하세요.
+서로 다른 학기말 종합의견 예시문장 5개를 생성하세요.
 `;
 
   const response = await fetch(url, {

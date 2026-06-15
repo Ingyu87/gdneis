@@ -412,6 +412,35 @@ body.neis-body {
   border-color: var(--neis-blue-bright);
 }
 
+.domain-card {
+  border: 1px solid var(--neis-border-light);
+  border-radius: 0.5rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.domain-header {
+  width: 100%;
+  border: 0;
+  background: #f8fafc;
+  padding: 0.8rem 1rem;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  color: var(--neis-navy);
+  cursor: pointer;
+}
+
+.domain-body {
+  display: none;
+  padding: 0.75rem;
+  border-top: 1px solid var(--neis-border-light);
+}
+
+.domain-card.open .domain-body {
+  display: block;
+}
+
 .result-item:hover {
   background-color: #f9fafb;
   border-color: var(--neis-blue-bright);

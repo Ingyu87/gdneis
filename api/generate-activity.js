@@ -53,16 +53,6 @@ function inferActivityFocus(item) {
   };
 }
 
-function stylePhrase(styles) {
-  const selected = Array.isArray(styles) ? styles.join(" ") : "";
-
-  if (/의견|조율|경청/.test(selected)) return "친구의 의견을 경청하고 자신의 생각을 조리 있게 제안하며";
-  if (/역할|책임/.test(selected)) return "맡은 역할을 책임감 있게 수행하며";
-  if (/문제 해결|실천 방법|규칙|약속/.test(selected)) return "공동의 문제 해결과 실천 과정에 참여하며";
-  if (/자료|발표/.test(selected)) return "활동 내용을 정리하고 친구들과 나누며";
-  return "활동 과정에 꾸준히 참여하며";
-}
-
 function buildOfficerSuggestion(body) {
   const officer = officerLabel(body);
   const activityItems = normalizeActivityItems(body);
@@ -74,27 +64,50 @@ function buildOfficerSuggestion(body) {
   return `${officer}으로 활동하며 ${roleAction}`;
 }
 
-function buildMockSuggestions(body) {
+function buildMockExamples(body) {
   if (body.officer?.enabled) {
-    return [buildOfficerSuggestion(body)];
+    const officer = officerLabel(body);
+    return {
+      excellent_sentences: [buildOfficerSuggestion(body)],
+      good_sentences: [`${officer}으로 활동하며 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
+      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 학급 공동체 활동에 참여하려고 노력함.`],
+    };
   }
 
   const activityItems = normalizeActivityItems(body);
   const selected = activityItems.slice(0, 2);
-  const participation = stylePhrase(body.participationStyles);
+  const counts = body.counts || {};
 
-  const suggestions = selected.flatMap((item) => {
+  const levelExamples = {
+    excellent_sentences: [],
+    good_sentences: [],
+    effort_sentences: [],
+  };
+
+  selected.forEach((item) => {
     const focus = inferActivityFocus(item);
-    return [
-      `${item.title} 과정에서 ${participation} ${focus.noun}에 성실히 참여함.`,
+    levelExamples.excellent_sentences.push(
       `${item.title}에서 ${focus.verbs[1]}으로써 활동 과정에서 드러나는 협력적 태도와 참여도가 돋보임.`,
-      `${item.title}에 참여하며 ${focus.verbs[2]}으로써 학교교육계획에 따른 활동을 꾸준히 수행함.`,
+      `${item.title} 과정에서 활동의 취지를 이해하고 친구들과 협력하여 ${focus.noun}에 적극적으로 참여함.`,
+      `${item.title}에 주도적으로 참여하여 자신의 역할을 책임감 있게 수행하고 공동체 활동에 기여함.`
+    );
+    levelExamples.good_sentences.push(
+      `${item.title}에 참여하며 ${focus.verbs[2]}으로써 학교교육계획에 따른 활동을 성실히 수행함.`,
       `${item.title} 과정에서 친구들과 생각을 나누고 공동의 활동이 원활하게 이루어지도록 기여함.`,
-      `${item.title}에 관심을 가지고 참여하며 활동 과정에서 자신의 역할을 찾아 실천함.`,
-    ];
+      `${item.title}의 기본 취지를 이해하고 활동 과정에 꾸준히 참여함.`
+    );
+    levelExamples.effort_sentences.push(
+      `${item.title}에 관심을 가지고 참여하며 활동 과정에서 자신의 역할을 익혀 감.`,
+      `${item.title}의 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
+      `${item.title} 과정에서 친구들과 함께하는 활동에 참여하며 학급의 약속을 실천하려는 태도를 보임.`
+    );
   });
 
-  return suggestions.slice(0, 5);
+  return {
+    excellent_sentences: levelExamples.excellent_sentences.slice(0, counts.excellent || 3),
+    good_sentences: levelExamples.good_sentences.slice(0, counts.good || 3),
+    effort_sentences: levelExamples.effort_sentences.slice(0, counts.effort || 3),
+  };
 }
 
 function parseJsonSafely(rawText) {
@@ -125,34 +138,37 @@ async function callGemini(apiKey, body) {
     .map((item) => `${item.category || ""} / ${item.title || ""} / ${item.basis || ""}`)
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
-  const countRule = isOfficerMode ? "임원 활동 문장 1개만 작성합니다." : "서로 다른 일반 활동 후보 문장 5개를 작성합니다.";
+  const counts = body.counts || {};
+  const countRule = isOfficerMode
+    ? "임원 활동도 상·중·하 수준별 예시문장을 작성합니다."
+    : `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 작성합니다.`;
   const officerRule = isOfficerMode
     ? `임원 표기는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
 
   const systemPrompt = `
 당신은 초등학교 담임교사의 학교생활기록부 창의적 체험활동상황 작성을 돕습니다.
-2026 학교생활기록부 기재요령에 따라 자율·자치활동 특기사항 후보를 작성합니다.
+2026 학교생활기록부 기재요령에 따라 자율·자치활동 특기사항 예시문장을 작성합니다.
 
 기재 기준:
 - 초등학교는 자율·자치활동과 동아리활동 특기사항을 통합하여 문장으로 입력합니다.
 - 활동 결과보다 활동 과정에서 드러난 개별 행동 특성, 참여도, 협력도, 활동실적, 실제 역할을 중심으로 씁니다.
 - 정규교육과정 또는 학교교육계획에 근거한 활동만 언급합니다.
-- 선택한 활동 근거와 어울리지 않는 참여 방식은 억지로 붙이지 않습니다.
-- 참여 방식은 활동 맥락에 맞을 때만 자연스럽게 녹여 씁니다.
 - 과장, 단정, 부정적 낙인 표현은 쓰지 않습니다.
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
+- 상 수준은 활동 이해, 자발성, 협력, 책임 있는 실천이 분명하게 드러나게 씁니다.
+- 중 수준은 활동에 꾸준히 참여하고 기본 역할을 성실히 수행한 모습이 드러나게 씁니다.
+- 하 수준은 안내에 따라 참여하고 활동 내용을 익혀 가는 모습을 긍정적으로 씁니다.
 - ${countRule}
 - ${officerRule}
 
-응답은 반드시 {"suggestions": string[]} JSON만 작성합니다.
+응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]} JSON만 작성합니다.
 `;
   const userPrompt = `
 학년도: ${body.schoolYear}
 학년: ${body.grade}
 활동 근거:
 ${activityText}
-참여 방식: ${(body.participationStyles || []).join(", ") || "선택 없음"}
 임원 활동: ${isOfficerMode ? officerLabel(body) : "없음"}
 `;
 
@@ -178,9 +194,12 @@ ${activityText}
   const result = await response.json();
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   const parsed = parseJsonSafely(text);
-  const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
 
-  return body.officer?.enabled ? suggestions.slice(0, 1) : suggestions.slice(0, 5);
+  return {
+    excellent_sentences: Array.isArray(parsed.excellent_sentences) ? parsed.excellent_sentences.slice(0, counts.excellent || 3) : [],
+    good_sentences: Array.isArray(parsed.good_sentences) ? parsed.good_sentences.slice(0, counts.good || 3) : [],
+    effort_sentences: Array.isArray(parsed.effort_sentences) ? parsed.effort_sentences.slice(0, counts.effort || 3) : [],
+  };
 }
 
 async function handler(req, res) {
@@ -202,11 +221,11 @@ async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || process.env.USE_MOCK_AI === "true") {
-    return res.status(200).json({ suggestions: buildMockSuggestions(body), mock: true });
+    return res.status(200).json({ ...buildMockExamples(body), mock: true });
   }
 
   try {
-    return res.status(200).json({ suggestions: await callGemini(apiKey, body) });
+    return res.status(200).json(await callGemini(apiKey, body));
   } catch (error) {
     return res.status(500).json({ error: error.message || "서버 오류" });
   }
