@@ -357,20 +357,27 @@ function mockSentence(payload, item, level, variant) {
   return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
 }
 
-function mockSentencesForLevel(payload, level, count) {
+function mockSentencesForLevel(payload, level, count, officerBudget = null) {
   const activities = payload.activityBasis?.length ? payload.activityBasis : [{ title: "자율·자치활동" }];
   return Array.from({ length: count }, (_, index) => {
-    const item = activities[index % activities.length];
-    const variant = Math.floor(index / activities.length);
+    const officerItem = activities.find((item) => item?.id === "__officer");
+    const regularItems = activities.filter((item) => item?.id !== "__officer");
+    const canUseOfficer = officerItem && (!officerBudget || officerBudget.remaining > 0);
+    const cycleItems = canUseOfficer ? [...regularItems, officerItem] : regularItems;
+    const safeItems = cycleItems.length ? cycleItems : activities;
+    const item = safeItems[index % safeItems.length];
+    const variant = Math.floor(index / safeItems.length);
+    if (item?.id === "__officer" && officerBudget) officerBudget.remaining -= 1;
     return mockSentence(payload, item, level, variant);
   });
 }
 
 function mockExamples(payload) {
+  const officerBudget = { remaining: payload.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
   return {
-    excellent_sentences: mockSentencesForLevel(payload, "excellent", payload.counts.excellent),
-    good_sentences: mockSentencesForLevel(payload, "good", payload.counts.good),
-    effort_sentences: mockSentencesForLevel(payload, "effort", payload.counts.effort),
+    excellent_sentences: mockSentencesForLevel(payload, "excellent", payload.counts.excellent, officerBudget),
+    good_sentences: mockSentencesForLevel(payload, "good", payload.counts.good, officerBudget),
+    effort_sentences: mockSentencesForLevel(payload, "effort", payload.counts.effort, officerBudget),
   };
 }
 

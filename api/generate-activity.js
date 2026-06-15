@@ -154,11 +154,17 @@ function buildMockSentence(body, item, level, variant) {
   return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
 }
 
-function buildSentencesForLevel(body, items, level, count) {
+function buildSentencesForLevel(body, items, level, count, officerBudget = null) {
   if (!count || count < 1 || !items.length) return [];
   return Array.from({ length: count }, (_, index) => {
-    const item = items[index % items.length];
-    const variant = Math.floor(index / items.length);
+    const officerItem = items.find((item) => item?.id === "__officer");
+    const regularItems = items.filter((item) => item?.id !== "__officer");
+    const canUseOfficer = officerItem && (!officerBudget || officerBudget.remaining > 0);
+    const cycleItems = canUseOfficer ? [...regularItems, officerItem] : regularItems;
+    const safeItems = cycleItems.length ? cycleItems : items;
+    const item = safeItems[index % safeItems.length];
+    const variant = Math.floor(index / safeItems.length);
+    if (item?.id === "__officer" && officerBudget) officerBudget.remaining -= 1;
     return buildMockSentence(body, item, level, variant);
   });
 }
@@ -166,19 +172,35 @@ function buildSentencesForLevel(body, items, level, count) {
 function buildMockExamples(body) {
   const activityItems = getActivityItemsWithOfficer(body);
   const counts = body.counts || {};
+  const officerBudget = { remaining: body.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
 
   return {
-    excellent_sentences: buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3),
-    good_sentences: buildSentencesForLevel(body, activityItems, "good", counts.good || 3),
-    effort_sentences: buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3),
+    excellent_sentences: buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3, officerBudget),
+    good_sentences: buildSentencesForLevel(body, activityItems, "good", counts.good || 3, officerBudget),
+    effort_sentences: buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3, officerBudget),
   };
 }
 
-function ensureRequestedCount(body, parsed, field, level, count) {
-  const existing = Array.isArray(parsed[field]) ? parsed[field].filter(Boolean) : [];
+function isOfficerSentence(body, sentence) {
+  if (!body.officer?.enabled) return false;
+  return String(sentence || "").includes(officerLabel(body)) || /임원|회장|부회장/.test(String(sentence || ""));
+}
+
+function ensureRequestedCount(body, parsed, field, level, count, officerBudget) {
+  const existing = [];
+  (Array.isArray(parsed[field]) ? parsed[field].filter(Boolean) : []).forEach((sentence) => {
+    if (!isOfficerSentence(body, sentence)) {
+      existing.push(sentence);
+      return;
+    }
+    if (officerBudget.remaining > 0) {
+      officerBudget.remaining -= 1;
+      existing.push(sentence);
+    }
+  });
   if (existing.length >= count) return existing.slice(0, count);
 
-  const fallback = buildSentencesForLevel(body, getActivityItemsWithOfficer(body), level, count);
+  const fallback = buildSentencesForLevel(body, getActivityItemsWithOfficer(body), level, count, officerBudget);
   const merged = [...existing];
   fallback.forEach((sentence) => {
     if (merged.length < count && !merged.includes(sentence)) merged.push(sentence);
@@ -218,7 +240,7 @@ async function callGemini(apiKey, body) {
   const counts = body.counts || {};
   const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 정확히 작성합니다.`;
   const officerRule = isOfficerMode
-    ? `임원 활동도 활동 근거 중 하나로 반영합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
+    ? `임원 활동도 활동 근거 중 하나로 반영하되, 전체 응답에서 임원 활동 문장은 최대 2개만 작성합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
 
   const systemPrompt = `
@@ -272,11 +294,12 @@ ${activityText}
   const result = await response.json();
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   const parsed = parseJsonSafely(text);
+  const officerBudget = { remaining: isOfficerMode ? 2 : Number.POSITIVE_INFINITY };
 
   return {
-    excellent_sentences: ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3),
-    good_sentences: ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3),
-    effort_sentences: ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3),
+    excellent_sentences: ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3, officerBudget),
+    good_sentences: ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3, officerBudget),
+    effort_sentences: ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3, officerBudget),
   };
 }
 
