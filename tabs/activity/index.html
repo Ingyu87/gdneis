@@ -46,6 +46,36 @@
       resize: vertical;
     }
 
+    .term-toggle {
+      display: inline-flex;
+      border: 1px solid var(--neis-border);
+      border-radius: 0.375rem;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .term-option {
+      border: 0;
+      border-right: 1px solid var(--neis-border);
+      background: #fff;
+      color: var(--neis-text);
+      min-width: 4.6rem;
+      padding: 0.48rem 0.7rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .term-option:last-child {
+      border-right: 0;
+    }
+
+    .term-option.active {
+      background: #e9f2ff;
+      color: var(--neis-primary);
+      box-shadow: inset 0 0 0 1px var(--neis-primary);
+    }
+
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -98,7 +128,7 @@
 <body class="neis-body">
   <section class="neis-card">
     <div class="neis-card-title">자율·자치활동 특기사항 작성</div>
-    <p class="neis-note">학교교육계획과 학년교육과정에 근거한 활동을 선택하고, 상·중·하 예시문장을 만든 뒤 최종 문장에 이어 붙여 수정합니다.</p>
+    <p class="neis-note">학교교육계획과 학년 교육과정에 근거한 활동을 학년·학기별로 선택하고, 상·중·하 예시문장을 만든 뒤 최종 문장에 이어 붙여 수정합니다.</p>
 
     <div class="activity-layout section-divider">
       <form id="activity-form">
@@ -117,6 +147,12 @@
             <option value="5">5학년</option>
             <option value="6">6학년</option>
           </select>
+
+          <label class="required">학기</label>
+          <div id="semester-toggle" class="term-toggle" role="group" aria-label="자율활동 학기 선택">
+            <button class="term-option active" type="button" data-semester="1">1학기</button>
+            <button class="term-option" type="button" data-semester="2">2학기</button>
+          </div>
         </div>
 
         <div class="field-stack">
@@ -142,7 +178,7 @@
 
           <div id="officer-fields" class="hidden" style="margin-top:0.75rem;">
             <div class="neis-filter-row">
-              <label for="officer-term">학기</label>
+              <label for="officer-term">임원 학기</label>
               <select id="officer-term">
                 <option value="1학기">1학기</option>
                 <option value="2학기">2학기</option>
@@ -162,7 +198,7 @@
             <div class="field-stack">
               <label for="officer-period">임원 기간</label>
               <input id="officer-period" type="text">
-              <div class="meta-line">기재요령: 예) 3학년: 1학기 학급 부회장(2026.03.01.-2026.08.18.)</div>
+              <div class="meta-line">기재요령 예시: 3학년: 1학기 학급 부회장(2026.03.01.-2026.08.18.)</div>
             </div>
           </div>
         </div>
@@ -178,7 +214,7 @@
         <div class="field-stack">
           <label for="final-text">최종 편집 문장</label>
           <textarea id="final-text" class="editor" placeholder="예시문장을 이어 붙이거나 직접 문장을 작성하세요."></textarea>
-          <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장을 누르면 이 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
+          <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장을 누르면 최종 문장 뒤에 이어 붙고, 복사 버튼으로 전체를 복사합니다.</div>
         </div>
         <div class="button-row">
           <button class="btn-primary" type="button" id="copy-final-btn">최종 문장 복사</button>
@@ -187,7 +223,7 @@
         <div class="section-divider">
           <div class="section-label">예시문장</div>
           <div id="result-list" class="suggestions">
-            <p class="neis-note">AI 예시문장 생성 버튼을 누르면 상·중·하 예시문장이 표시됩니다. 예시문장을 누르면 최종 문장 뒤에 이어 붙습니다.</p>
+            <p class="neis-note">AI 예시문장 생성 버튼을 누르면 학년·학기별 예시문장을 제시합니다. 예시문장을 누르면 최종 문장 뒤에 이어 붙습니다.</p>
           </div>
         </div>
       </aside>

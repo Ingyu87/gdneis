@@ -15,6 +15,7 @@ const LEVELS = [
 const fallbackState = {
   schoolYear: "2026",
   grade: "4",
+  semester: "1",
   activityId: "",
   activityIds: [],
   excellent: 3,
@@ -40,6 +41,7 @@ const els = {
   form: document.getElementById("activity-form"),
   schoolYear: document.getElementById("school-year"),
   grade: document.getElementById("grade-select"),
+  semesterToggle: document.getElementById("semester-toggle"),
   excellent: document.getElementById("excellent-count"),
   good: document.getElementById("good-count"),
   effort: document.getElementById("effort-count"),
@@ -66,10 +68,11 @@ function normalizeSavedState() {
   if (!Array.isArray(state.activityIds)) {
     state.activityIds = state.activityId ? [state.activityId] : [];
   }
+  if (!["1", "2"].includes(state.semester)) state.semester = fallbackState.semester;
   if (!TERM_PERIODS[state.officerTerm]) state.officerTerm = "1학기";
   if (!["학급", "학년", "전교"].includes(state.officerType)) state.officerType = "학급";
-  if (!state.officerTitle || /[?占]/.test(state.officerTitle)) state.officerTitle = "회장";
-  if (!state.officerPeriod || /[?占]/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
+  if (!state.officerTitle || /[?�]/.test(state.officerTitle)) state.officerTitle = "회장";
+  if (!state.officerPeriod || /[?�]/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
 
   state.excellent = Number.parseInt(state.excellent, 10) || fallbackState.excellent;
   state.good = Number.parseInt(state.good, 10) || fallbackState.good;
@@ -88,9 +91,14 @@ function normalizeSavedState() {
   }
 }
 
+function activityMatchesSemester(item) {
+  if (!Array.isArray(item.terms) || !item.terms.length) return true;
+  return item.terms.includes(state.semester);
+}
+
 function getActivities() {
-  const common = (themes.common || []).filter((item) => item.grades?.includes(state.grade));
-  const gradeSpecific = themes.byGrade[state.grade] || [];
+  const common = (themes.common || []).filter((item) => item.grades?.includes(state.grade) && activityMatchesSemester(item));
+  const gradeSpecific = (themes.byGrade[state.grade] || []).filter(activityMatchesSemester);
   return [...common, ...gradeSpecific];
 }
 
@@ -126,6 +134,14 @@ function syncFromInputs() {
   renderMetaOnly();
 }
 
+function renderSemesterToggle() {
+  [...els.semesterToggle.querySelectorAll(".term-option")].forEach((button) => {
+    const active = button.dataset.semester === state.semester;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
 function renderActivities() {
   const activities = getActivities();
   const availableIds = new Set(activities.map((item) => item.id));
@@ -134,8 +150,15 @@ function renderActivities() {
   if (!state.activityIds.length && activities[0]) {
     state.activityIds = [activities[0].id];
   }
+  state.activityId = state.activityIds[0] || "";
 
   els.activityList.innerHTML = "";
+
+  if (!activities.length) {
+    els.activityList.innerHTML = '<p class="neis-note">선택한 학년·학기에 등록된 활동 근거가 없습니다.</p>';
+    return;
+  }
+
   activities.forEach((item) => {
     const label = document.createElement("label");
     label.className = `choice-item ${state.activityIds.includes(item.id) ? "active" : ""}`;
@@ -217,7 +240,7 @@ function renderExamples() {
   const total = LEVELS.reduce((sum, level) => sum + (examples[level.field] || []).length, 0);
 
   if (!total) {
-    els.resultList.innerHTML = '<p class="neis-note">AI 예시문장 생성 버튼을 누르면 상·중·하 예시문장이 표시됩니다.</p>';
+    els.resultList.innerHTML = '<p class="neis-note">AI 예시문장 생성 버튼을 누르면 선택한 학년·학기 근거에 맞는 예시문장을 제시합니다.</p>';
     return;
   }
 
@@ -245,7 +268,13 @@ function renderExamples() {
 
 function renderMetaOnly() {
   const activities = getSelectedActivities();
-  els.activityBasis.textContent = activities.map((item) => `${item.title}: ${item.basis}`).join(" / ");
+  const termLabel = `${state.semester}학기`;
+  els.activityBasis.textContent = activities
+    .map((item) => `${item.title}: ${item.basis}`)
+    .join(" / ");
+  if (els.activityBasis.textContent) {
+    els.activityBasis.textContent = `${termLabel} 근거 - ${els.activityBasis.textContent}`;
+  }
   els.officerFields.classList.toggle("hidden", !state.officerEnabled);
   els.generateBtn.textContent = state.officerEnabled ? "임원 예시문장 생성" : "AI 예시문장 생성";
   els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
@@ -257,6 +286,7 @@ function render() {
   els.excellent.value = state.excellent;
   els.good.value = state.good;
   els.effort.value = state.effort;
+  renderSemesterToggle();
   renderActivities();
   els.officerEnabled.checked = state.officerEnabled;
   els.officerTerm.value = state.officerTerm;
@@ -270,31 +300,32 @@ function render() {
 
 function mockExamples(payload) {
   const activity = payload.activityBasis?.[0]?.title || "자율·자치활동";
+  const term = `${payload.semester}학기`;
 
   if (payload.officer?.enabled) {
     const officer = `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
     return {
-      excellent_sentences: [`${officer}으로 활동하며 학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함.`],
-      good_sentences: [`${officer}으로 활동하며 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
-      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 학급 공동체 활동에 참여하려고 노력함.`],
+      excellent_sentences: [`${officer}으로 활동하며 ${term} ${activity}에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함.`],
+      good_sentences: [`${officer}으로 활동하며 ${term} 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
+      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`],
     };
   }
 
   return {
     excellent_sentences: [
-      `${activity} 과정에서 활동의 취지를 이해하고 친구들의 의견을 조율하며 공동의 문제 해결에 적극적으로 참여함.`,
-      `${activity}에 주도적으로 참여하여 학급 공동체의 약속을 실천하고 활동이 원활하게 이루어지도록 기여함.`,
-      `${activity}에서 맡은 역할을 책임감 있게 수행하고 친구들과 협력하여 배운 점을 실천으로 연결함.`,
+      `${term} ${activity} 과정에서 활동의 취지를 이해하고 친구들의 의견을 조율하며 공동의 문제 해결에 적극적으로 참여함.`,
+      `${term} ${activity}에 주도적으로 참여하여 학급 공동체의 약속을 실천하고 활동이 원활하게 이루어지도록 기여함.`,
+      `${term} ${activity}에서 맡은 역할을 책임감 있게 수행하고 친구들과 협력하여 배운 점을 실천으로 연결함.`,
     ].slice(0, payload.counts.excellent),
     good_sentences: [
-      `${activity} 과정에 꾸준히 참여하며 친구의 의견을 듣고 자신의 생각을 차분히 표현함.`,
-      `${activity}에서 맡은 역할을 성실히 수행하고 공동체 활동에 필요한 규칙과 약속을 실천함.`,
-      `${activity}에 관심을 가지고 참여하며 활동 내용을 이해하고 친구들과 함께 실천함.`,
+      `${term} ${activity} 과정에 꾸준히 참여하며 친구의 의견을 듣고 자신의 생각을 차분히 표현함.`,
+      `${term} ${activity}에서 맡은 역할을 성실히 수행하고 공동체 활동에 필요한 규칙과 약속을 실천함.`,
+      `${term} ${activity}에 관심을 가지고 참여하며 활동 내용을 이해하고 친구들과 함께 실천함.`,
     ].slice(0, payload.counts.good),
     effort_sentences: [
-      `${activity}의 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
-      `${activity} 과정에서 친구들과 함께하는 활동에 관심을 가지고 자신의 역할을 익혀 감.`,
-      `${activity}에 참여하며 학급의 약속과 활동 절차를 이해하고 실천하려는 태도를 보임.`,
+      `${term} ${activity}의 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
+      `${term} ${activity} 과정에서 친구들과 함께하는 활동에 관심을 가지고 자신의 역할을 찾아감.`,
+      `${term} ${activity}에 참여하며 학급의 약속과 활동 절차를 이해하고 실천하려는 태도를 보임.`,
     ].slice(0, payload.counts.effort),
   };
 }
@@ -304,6 +335,7 @@ async function generateExamples() {
   const payload = {
     schoolYear: state.schoolYear,
     grade: state.grade,
+    semester: state.semester,
     counts: {
       excellent: state.excellent,
       good: state.good,
@@ -348,6 +380,12 @@ async function generateExamples() {
   }
 }
 
+function resetActivitySelection() {
+  state.activityId = "";
+  state.activityIds = [];
+  state.examplesByLevel = { ...fallbackState.examplesByLevel };
+}
+
 function bindEvents() {
   [
     els.schoolYear,
@@ -366,9 +404,17 @@ function bindEvents() {
 
   els.grade.addEventListener("change", () => {
     state.grade = els.grade.value;
-    state.activityId = "";
-    state.activityIds = [];
+    resetActivitySelection();
     syncFromInputs();
+    render();
+  });
+
+  els.semesterToggle.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-semester]");
+    if (!button || button.dataset.semester === state.semester) return;
+    state.semester = button.dataset.semester;
+    resetActivitySelection();
+    persist();
     render();
   });
 
@@ -387,6 +433,9 @@ function bindEvents() {
   els.sampleBtn.addEventListener("click", () => {
     setState({
       grade: "4",
+      semester: "1",
+      activityId: "",
+      activityIds: [],
       excellent: 3,
       good: 3,
       effort: 3,
