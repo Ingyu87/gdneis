@@ -227,11 +227,16 @@ function buildCombinedSentences(body, items) {
   const titles = regularItems.slice(0, 4).map((item) => item.title).join(", ");
   const officer = buildOfficerActivity(body);
   const officerText = officer ? ` ${officerLabel(body)}으로서 맡은 역할을 책임감 있게 수행하고,` : "";
-  return [
-    `${term} ${titles} 활동에 두루 참여하며${officerText} 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
+  const templates = [
+    `${term} ${titles || "선택 근거"} 활동에 두루 참여하며${officerText} 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
     `${term} 여러 자율·자치활동에서 활동의 취지를 이해하고 독서, 인성, 문예체 등 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
     `${term} 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력하며 배운 내용을 생활 속 실천으로 연결함.`,
+    `${term} 다양한 자율·자치활동에 관심을 가지고 참여하며 공동체의 약속을 지키고 친구들과 협력하는 모습이 돋보임.`,
+    `${term} 선택한 활동 근거에 따라 꾸준히 참여하고 배운 내용을 생활 속 실천으로 연결하려는 태도를 보임.`,
   ];
+  const count = body.counts?.combined ?? 3;
+  if (!count) return [];
+  return Array.from({ length: count }, (_, index) => templates[index % templates.length]);
 }
 
 function isOfficerSentence(body, sentence) {
@@ -310,7 +315,7 @@ async function callGemini(apiKey, body) {
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
   const counts = body.counts || {};
-  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 정확히 작성합니다.`;
+  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개, 종합 예시문장 ${counts.combined ?? 3}개를 정확히 작성합니다.`;
   const officerRule = isOfficerMode
     ? `임원 활동도 활동 근거 중 하나로 반영하되, 전체 응답에서 임원 활동 문장은 최대 2개만 작성합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
@@ -331,7 +336,7 @@ async function callGemini(apiKey, body) {
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
 - 선택된 활동 근거별로 문장을 고르게 만듭니다. 요청 문장 수가 근거 수보다 많으면 근거를 순환하여 빠지는 근거가 없게 합니다.
 - 근거별 예시문장은 각 활동 근거 카드에 넣을 수 있도록 basis_examples에 활동 근거별로 묶어 작성합니다.
-- 종합 예시문장은 여러 활동 근거를 자연스럽게 결합하여 combined_sentences에 3개 작성합니다.
+- 종합 예시문장은 여러 활동 근거를 자연스럽게 결합하여 combined_sentences에 요청한 개수만큼 작성합니다.
 - ${countRule}
 - ${officerRule}
 
@@ -380,7 +385,7 @@ ${activityText}
     effort_sentences: effortSentences,
     basis_examples: ensureBasisExamples(body, parsed),
     combined_sentences: Array.isArray(parsed.combined_sentences) && parsed.combined_sentences.length
-      ? parsed.combined_sentences.slice(0, 3)
+      ? parsed.combined_sentences.slice(0, counts.combined ?? 3)
       : buildCombinedSentences(body, getActivityItemsWithOfficer(body)),
   };
 }

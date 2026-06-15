@@ -21,6 +21,7 @@ const fallbackState = {
   excellent: 3,
   good: 3,
   effort: 3,
+  combined: 3,
   officerEnabled: false,
   officerTerm: "1학기",
   officerType: "학급",
@@ -47,6 +48,7 @@ const els = {
   excellent: document.getElementById("excellent-count"),
   good: document.getElementById("good-count"),
   effort: document.getElementById("effort-count"),
+  combined: document.getElementById("combined-count"),
   activityList: document.getElementById("activity-list"),
   activityBasis: document.getElementById("activity-basis"),
   officerEnabled: document.getElementById("officer-enabled"),
@@ -79,6 +81,7 @@ function normalizeSavedState() {
   state.excellent = Number.parseInt(state.excellent, 10) || fallbackState.excellent;
   state.good = Number.parseInt(state.good, 10) || fallbackState.good;
   state.effort = Number.parseInt(state.effort, 10) || fallbackState.effort;
+  state.combined = Number.parseInt(state.combined, 10) || fallbackState.combined;
 
   if (!state.examplesByLevel) {
     state.examplesByLevel = { ...fallbackState.examplesByLevel };
@@ -145,6 +148,7 @@ function syncFromInputs() {
   state.excellent = countFromInput(els.excellent, fallbackState.excellent);
   state.good = countFromInput(els.good, fallbackState.good);
   state.effort = countFromInput(els.effort, fallbackState.effort);
+  state.combined = countFromInput(els.combined, fallbackState.combined);
   state.officerEnabled = els.officerEnabled.checked;
   state.officerTerm = els.officerTerm.value;
   state.officerType = els.officerType.value;
@@ -370,6 +374,7 @@ function render() {
   els.excellent.value = state.excellent;
   els.good.value = state.good;
   els.effort.value = state.effort;
+  els.combined.value = state.combined;
   renderSemesterToggle();
   renderActivities();
   els.officerEnabled.checked = state.officerEnabled;
@@ -467,6 +472,25 @@ function mockBasisExamples(payload, activities) {
   }));
 }
 
+function mockCombinedSentences(payload, activities) {
+  const term = `${payload.semester}학기`;
+  const regularItems = activities.filter((item) => item.id !== "__officer");
+  const titles = regularItems.slice(0, 4).map((item) => item.title).join(", ");
+  const officerText = payload.officer?.enabled
+    ? ` ${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})으로서 맡은 역할을 책임감 있게 수행하고,`
+    : "";
+  const templates = [
+    `${term} ${titles || "선택 근거"} 활동에 두루 참여하며${officerText} 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
+    `${term} 여러 자율·자치활동에서 활동의 취지를 이해하고 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
+    `${term} 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력함.`,
+    `${term} 다양한 자율·자치활동에 관심을 가지고 참여하며 공동체의 약속을 지키고 친구들과 협력하는 모습이 돋보임.`,
+    `${term} 선택한 활동 근거에 따라 꾸준히 참여하고 배운 내용을 생활 속 실천으로 연결하려는 태도를 보임.`,
+  ];
+  const count = payload.counts.combined || 3;
+  if (!count) return [];
+  return Array.from({ length: count }, (_, index) => templates[index % templates.length]);
+}
+
 function mockExamples(payload) {
   const officerBudget = { remaining: payload.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
   const excellentSentences = mockSentencesForLevel(payload, "excellent", payload.counts.excellent, officerBudget);
@@ -478,11 +502,7 @@ function mockExamples(payload) {
     good_sentences: goodSentences,
     effort_sentences: effortSentences,
     basis_examples: mockBasisExamples(payload, activities),
-    combined_sentences: [
-      `${payload.semester}학기 선택 근거 활동에 두루 참여하며 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
-      `${payload.semester}학기 여러 자율·자치활동에서 활동의 취지를 이해하고 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
-      `${payload.semester}학기 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력함.`,
-    ],
+    combined_sentences: mockCombinedSentences(payload, activities),
   };
 }
 
@@ -496,6 +516,7 @@ async function generateExamples() {
       excellent: state.excellent,
       good: state.good,
       effort: state.effort,
+      combined: state.combined,
     },
     activityBasis: activities,
     officer: {
@@ -563,6 +584,7 @@ function bindEvents() {
     els.excellent,
     els.good,
     els.effort,
+    els.combined,
     els.officerEnabled,
     els.officerType,
     els.officerTitle,
@@ -610,6 +632,7 @@ function bindEvents() {
       excellent: 3,
       good: 3,
       effort: 3,
+      combined: 3,
       officerEnabled: true,
       officerTerm: "1학기",
       officerType: "학급",
