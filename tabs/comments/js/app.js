@@ -77,9 +77,11 @@ function renderMetaOnly() {
 }
 
 function appendToFinal(sentence) {
-  const current = state.finalText.trim();
+  const current = els.finalText.value.trim();
   state.finalText = current ? `${current} ${sentence}` : sentence;
   els.finalText.value = state.finalText;
+  els.finalText.focus();
+  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
   renderMetaOnly();
   persist();
 }
@@ -88,7 +90,10 @@ async function appendAndCopy(sentence, element, label) {
   appendToFinal(sentence);
   const ok = await Harness.copyText(state.finalText);
   if (ok) {
-    if (element) Harness.markCopied(element);
+    if (element) {
+      element.classList.add("clicked");
+      window.setTimeout(() => element.classList.remove("clicked"), 900);
+    }
     Harness.showToast(`${label} 이어 붙이고 최종 종합의견 전체를 복사했습니다.`);
   } else {
     Harness.showToast("복사에 실패했습니다.", "error");
@@ -98,8 +103,30 @@ async function appendAndCopy(sentence, element, label) {
 function renderSentenceItem(sentence, label) {
   const item = document.createElement("div");
   item.className = "result-item";
-  item.textContent = sentence;
-  item.addEventListener("click", () => appendAndCopy(sentence, item, label));
+  item.tabIndex = 0;
+
+  const text = document.createElement("span");
+  text.className = "result-item-text";
+  text.textContent = sentence;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "copy-button";
+  button.textContent = "이어 붙이기";
+
+  const add = () => appendAndCopy(sentence, item, label);
+  item.append(text, button);
+  item.addEventListener("click", add);
+  item.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      add();
+    }
+  });
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    add();
+  });
   return item;
 }
 

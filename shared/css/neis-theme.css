@@ -390,6 +390,28 @@ body.neis-body {
   line-height: 1.6;
 }
 
+.result-item-text {
+  display: block;
+}
+
+.copy-button {
+  margin-top: 0.6rem;
+  border: 1px solid var(--neis-border);
+  border-radius: 0.375rem;
+  background: #f8fafc;
+  color: var(--neis-blue);
+  padding: 0.32rem 0.6rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background: #eef4fb;
+  border-color: var(--neis-blue-bright);
+}
+
 .result-item:hover {
   background-color: #f9fafb;
   border-color: var(--neis-blue-bright);

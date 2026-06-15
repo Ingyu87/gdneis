@@ -43,9 +43,11 @@ function setLoading(isLoading) {
 }
 
 function appendToFinal(sentence) {
-  const current = state.finalText.trim();
+  const current = els.finalText.value.trim();
   state.finalText = current ? `${current} ${sentence}` : sentence;
   els.finalText.value = state.finalText;
+  els.finalText.focus();
+  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
   updateByteCount();
   persist();
 }
@@ -81,7 +83,7 @@ function renderList(target, sentences, emptyText) {
     item.className = "result-item";
     item.tabIndex = 0;
     item.innerHTML = `
-      <span>${sentence}</span>
+      <span class="result-item-text">${sentence}</span>
       <button type="button" class="copy-button">이어 붙이기</button>
     `;
 

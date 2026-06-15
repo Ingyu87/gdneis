@@ -156,15 +156,18 @@ function renderChips() {
 }
 
 function appendSuggestion(sentence, item) {
-  const current = state.finalText.trim();
+  const current = els.finalText.value.trim();
   state.finalText = current ? `${current} ${sentence}` : sentence;
   els.finalText.value = state.finalText;
+  els.finalText.focus();
+  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
   renderMetaOnly();
   persist();
 
   Harness.copyText(state.finalText).then((ok) => {
     if (ok) {
-      Harness.markCopied(item);
+      item.classList.add("clicked");
+      window.setTimeout(() => item.classList.remove("clicked"), 900);
       Harness.showToast("후보 문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
     } else {
       Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
@@ -186,13 +189,27 @@ function renderSuggestions() {
     const item = document.createElement("div");
     item.className = "result-item";
     item.tabIndex = 0;
-    item.textContent = sentence;
+
+    const text = document.createElement("span");
+    text.className = "result-item-text";
+    text.textContent = sentence;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-button";
+    button.textContent = "이어 붙이기";
+
+    item.append(text, button);
     item.addEventListener("click", () => appendSuggestion(sentence, item));
     item.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         appendSuggestion(sentence, item);
       }
+    });
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      appendSuggestion(sentence, item);
     });
     els.resultList.appendChild(item);
   });
