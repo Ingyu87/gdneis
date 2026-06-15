@@ -204,6 +204,25 @@ function renderActivities() {
 
     els.activityList.appendChild(label);
   });
+
+  const officerLabel = document.createElement("label");
+  officerLabel.className = `choice-item ${state.officerEnabled ? "active" : ""}`;
+  officerLabel.innerHTML = `
+    <input type="checkbox" value="__officer" ${state.officerEnabled ? "checked" : ""}>
+    <span>
+      <span class="choice-item-title">학급임원 활동</span>
+      <span class="choice-item-meta">${state.grade}학년 ${state.officerTerm} ${state.officerType} ${state.officerTitle}</span>
+    </span>
+  `;
+
+  officerLabel.querySelector("input").addEventListener("change", (event) => {
+    state.officerEnabled = event.target.checked;
+    if (!state.officerPeriod) state.officerPeriod = TERM_PERIODS[state.officerTerm];
+    persist();
+    render();
+  });
+
+  els.activityList.appendChild(officerLabel);
 }
 
 function appendExample(sentence, item) {
