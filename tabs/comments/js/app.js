@@ -78,7 +78,7 @@ function renderMetaOnly() {
 
 function appendToFinal(sentence) {
   const current = state.finalText.trim();
-  state.finalText = current ? `${current}\n${sentence}` : sentence;
+  state.finalText = current ? `${current} ${sentence}` : sentence;
   els.finalText.value = state.finalText;
   renderMetaOnly();
   persist();
@@ -314,7 +314,6 @@ function bindEvents() {
     Harness.showToast("학기말 종합의견 저장 데이터를 초기화했습니다.");
   });
   els.copyFinalBtn.addEventListener("click", copyFinal);
-  els.finalText.addEventListener("click", copyFinal);
 }
 
 async function init() {

@@ -1,14 +1,16 @@
 const STORAGE_KEY = "gdneis.behavior.state";
+const API_ENDPOINT = "/api/generate-behavior";
 
-const fallbackState = {
+const DEFAULT_STATE = {
   inputText: "",
   strengths: [],
   coachings: [],
   activeView: "strengths",
-  finalText: ""
+  finalText: "",
 };
 
-let state = Harness.loadState(STORAGE_KEY, fallbackState);
+const SAMPLE_INPUT =
+  "수업 시간에 친구의 발표를 경청하고 필요한 내용을 꼼꼼히 기록함. 모둠 활동에서는 맡은 역할을 책임감 있게 수행하려는 태도가 보이며, 의견이 다를 때 차분히 조율하려고 노력함. 다만 과제 마감 전 점검이 늦어지는 경우가 있어 계획을 세워 실천하는 연습이 필요함.";
 
 const els = {
   form: document.getElementById("behavior-form"),
@@ -16,162 +18,215 @@ const els = {
   generateBtn: document.getElementById("generate-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   clearBtn: document.getElementById("clear-btn"),
-  tabs: document.querySelectorAll(".neis-subtab"),
+  subtabs: [...document.querySelectorAll(".neis-subtab")],
   strengthsList: document.getElementById("strengths-list"),
   coachingsList: document.getElementById("coachings-list"),
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
-  copyFinalBtn: document.getElementById("copy-final-btn")
+  copyFinalBtn: document.getElementById("copy-final-btn"),
 };
 
-const persist = Harness.debounce(() => Harness.saveState(STORAGE_KEY, state), 200);
+let state = loadState();
 
-function syncFromInputs() {
-  state.inputText = els.inputText.value;
-  state.finalText = els.finalText.value;
+function loadState() {
+  const saved = Harness.loadState(STORAGE_KEY, DEFAULT_STATE);
+  return { ...DEFAULT_STATE, ...saved };
+}
+
+function persist() {
+  Harness.saveState(STORAGE_KEY, state);
+}
+
+function setLoading(isLoading) {
+  els.generateBtn.disabled = isLoading;
+  els.generateBtn.textContent = isLoading ? "생성 중..." : "강점·성장코칭 생성";
+}
+
+function appendToFinal(sentence) {
+  const current = state.finalText.trim();
+  state.finalText = current ? `${current} ${sentence}` : sentence;
+  els.finalText.value = state.finalText;
+  updateByteCount();
   persist();
-  renderMetaOnly();
 }
 
-function mockResults(inputText) {
-  const base = inputText || "학교생활 속 여러 활동";
-  return {
-    strengths: [
-      `${base}에서 긍정적인 태도를 보이며 주변 친구들과 협력하려는 마음이 돋보임.`,
-      `자신의 관심사를 바탕으로 활동에 참여하고 맡은 일을 성실히 수행하며 성장 가능성을 보임.`,
-      `친구의 의견을 경청하고 함께 활동하려는 태도를 지니고 있어 공동체 생활에 안정적으로 참여함.`,
-      `수업과 생활 장면에서 자신의 생각을 표현하려고 노력하며 긍정적인 관계 형성에 힘씀.`,
-      `주어진 상황에서 도움을 주고받으며 학교생활에 필요한 책임감과 배려심을 키워 감.`
-    ],
-    coachings: [
-      `활동 전 해야 할 일을 스스로 정리하는 습관을 기른다면 참여 태도가 더욱 안정될 것으로 기대됨.`,
-      `친구의 의견을 들은 뒤 자신의 생각을 차분히 말하는 경험을 늘린다면 협력적 소통 능력이 향상될 것임.`,
-      `과제 수행 시간을 미리 계획하고 끝까지 점검하는 태도를 기른다면 자기관리 역량이 더욱 자랄 것임.`,
-      `관심 있는 활동에서 보이는 긍정적인 태도를 다양한 수업 장면으로 넓혀 간다면 더 큰 성장이 기대됨.`,
-      `작은 역할부터 책임감 있게 수행하는 경험을 꾸준히 쌓는다면 공동체 안에서 자신감을 키울 수 있을 것임.`
-    ]
-  };
+function updateByteCount() {
+  els.byteCount.textContent = `${Harness.byteLength(els.finalText.value)} Byte`;
 }
 
-function renderMetaOnly() {
-  els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
+function renderTabs() {
+  els.subtabs.forEach((tab) => {
+    const isActive = tab.dataset.view === state.activeView;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+
+  els.strengthsList.classList.toggle("hidden", state.activeView !== "strengths");
+  els.coachingsList.classList.toggle("hidden", state.activeView !== "coachings");
 }
 
-function renderList(container, sentences) {
-  container.innerHTML = "";
+function renderList(target, sentences, emptyText) {
+  target.innerHTML = "";
+
   if (!sentences.length) {
-    container.innerHTML = '<p class="neis-note">후보 문장 생성 버튼을 누르면 문장이 표시됩니다.</p>';
+    const empty = document.createElement("p");
+    empty.className = "neis-note";
+    empty.textContent = emptyText;
+    target.appendChild(empty);
     return;
   }
 
   sentences.forEach((sentence) => {
     const item = document.createElement("div");
     item.className = "result-item";
-    item.textContent = sentence;
-    item.addEventListener("click", async () => {
-      const current = state.finalText.trim();
-      state.finalText = current ? `${current}\n${sentence}` : sentence;
-      els.finalText.value = state.finalText;
-      renderMetaOnly();
-      persist();
+    item.tabIndex = 0;
+    item.innerHTML = `
+      <span>${sentence}</span>
+      <button type="button" class="copy-button">이어 붙이기</button>
+    `;
+
+    const add = async () => {
+      appendToFinal(sentence);
       const ok = await Harness.copyText(state.finalText);
       if (ok) {
-        Harness.markCopied(item);
-        Harness.showToast("문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
+        item.classList.add("clicked");
+        window.setTimeout(() => item.classList.remove("clicked"), 900);
+        Harness.showToast("최종 편집 문장에 이어 붙이고 복사했습니다.");
       } else {
-        Harness.showToast("복사에 실패했습니다.", "error");
+        Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
+      }
+    };
+
+    item.addEventListener("click", add);
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        add();
       }
     });
-    container.appendChild(item);
-  });
-}
+    item.querySelector("button").addEventListener("click", (event) => {
+      event.stopPropagation();
+      add();
+    });
 
-function renderTabs() {
-  els.tabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.view === state.activeView);
+    target.appendChild(item);
   });
-  els.strengthsList.classList.toggle("hidden", state.activeView !== "strengths");
-  els.coachingsList.classList.toggle("hidden", state.activeView !== "coachings");
 }
 
 function render() {
   els.inputText.value = state.inputText;
   els.finalText.value = state.finalText;
-  renderList(els.strengthsList, state.strengths);
-  renderList(els.coachingsList, state.coachings);
   renderTabs();
-  renderMetaOnly();
+  renderList(els.strengthsList, state.strengths, "관찰 내용을 입력하면 강점 문장이 표시됩니다.");
+  renderList(els.coachingsList, state.coachings, "관찰 내용을 입력하면 성장 코칭 문장이 표시됩니다.");
+  updateByteCount();
 }
 
-async function generate() {
-  syncFromInputs();
-  if (!state.inputText.trim()) {
-    Harness.showToast("관찰 문장을 입력하세요.", "error");
+function mockResults(inputText) {
+  const hasCooperation = /모둠|친구|협력|경청|발표/.test(inputText);
+  const hasResponsibility = /과제|기록|준비|책임|역할/.test(inputText);
+
+  const strengths = [
+    hasCooperation
+      ? "친구의 의견을 경청하고 필요한 내용을 차분히 정리하며 공동의 활동에 안정적으로 참여함."
+      : "수업과 생활 장면에서 주어진 활동에 성실히 참여하며 자신의 생각을 표현하려는 태도가 돋보임.",
+    hasResponsibility
+      ? "맡은 역할과 과제를 책임감 있게 수행하려고 노력하며 활동 과정에서 꾸준한 실천 태도를 보임."
+      : "학습 활동에 필요한 준비와 참여 태도가 안정적이며 주변 상황을 살피며 행동하려는 모습이 보임.",
+    "의견이 다른 상황에서도 차분히 조율하려고 노력하며 긍정적인 관계 형성에 기여함.",
+  ];
+
+  const coachings = [
+    "활동 전에 해야 할 일을 한 가지씩 스스로 정리하는 연습을 한다면 수업과 생활 장면에서 더욱 안정적으로 참여하는 긍정적인 방향으로 바뀔 것으로 예상됨.",
+    "친구의 말을 끝까지 들은 뒤 자신의 생각을 차분히 말하는 연습을 한다면 협력적 소통 태도가 더욱 긍정적인 방향으로 바뀔 것으로 예상됨.",
+    "과제 수행 시간을 미리 확인하고 마무리 여부를 점검하는 연습을 한다면 자기관리 태도가 더욱 긍정적인 방향으로 바뀔 것으로 예상됨.",
+  ];
+
+  return { strengths, coachings };
+}
+
+async function generateBehavior(event) {
+  event.preventDefault();
+  const inputText = els.inputText.value.trim();
+
+  if (!inputText) {
+    Harness.showToast("관찰 기록을 먼저 입력해주세요.", "error");
+    els.inputText.focus();
     return;
   }
 
-  els.generateBtn.disabled = true;
-  els.generateBtn.textContent = "생성 중...";
+  state.inputText = inputText;
+  setLoading(true);
+
   try {
-    const response = await fetch("/api/generate-behavior", {
+    const response = await fetch(API_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inputText: state.inputText })
+      body: JSON.stringify({ inputText }),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const json = await response.json();
-    state.strengths = Array.isArray(json.strengths) ? json.strengths : [];
-    state.coachings = Array.isArray(json.coachings) ? json.coachings : [];
-    if (!state.strengths.length && !state.coachings.length) Object.assign(state, mockResults(state.inputText));
-    persist();
-    render();
-    Harness.showToast(json.mock ? "샘플 후보를 생성했습니다." : "후보 문장을 생성했습니다.");
-  } catch (_error) {
-    Object.assign(state, mockResults(state.inputText));
-    persist();
-    render();
-    Harness.showToast("로컬 샘플 후보를 생성했습니다.");
+
+    if (!response.ok) {
+      throw new Error("API response was not ok");
+    }
+
+    const data = await response.json();
+    state.strengths = Array.isArray(data.strengths) ? data.strengths : [];
+    state.coachings = Array.isArray(data.coachings) ? data.coachings : [];
+  } catch (error) {
+    console.warn("Using local behavior fallback.", error);
+    const fallback = mockResults(inputText);
+    state.strengths = fallback.strengths;
+    state.coachings = fallback.coachings;
+    Harness.showToast("로컬 예시 문장으로 표시했습니다.");
   } finally {
-    els.generateBtn.disabled = false;
-    els.generateBtn.textContent = "후보 문장 생성";
+    setLoading(false);
+    persist();
+    render();
   }
 }
 
-async function copyFinal() {
-  syncFromInputs();
-  const ok = await Harness.copyText(state.finalText);
-  Harness.showToast(ok ? "최종 문장을 복사했습니다." : "복사할 문장이 없습니다.", ok ? "success" : "error");
+async function copyFinalText() {
+  const value = els.finalText.value.trim();
+
+  if (!value) {
+    Harness.showToast("복사할 최종 편집 문장이 없습니다.", "error");
+    return;
+  }
+
+  const ok = await Harness.copyText(value);
+  Harness.showToast(
+    ok ? "최종 편집 문장을 복사했습니다." : "복사에 실패했습니다. 문장을 직접 선택해 복사하세요.",
+    ok ? "success" : "error"
+  );
 }
 
-function bindEvents() {
-  els.inputText.addEventListener("input", syncFromInputs);
-  els.finalText.addEventListener("input", syncFromInputs);
-  els.finalText.addEventListener("click", copyFinal);
-  els.copyFinalBtn.addEventListener("click", copyFinal);
-  els.form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    generate();
-  });
-  els.sampleBtn.addEventListener("click", () => {
-    state.inputText = "수업 중 집중이 짧을 때가 있으나 친구를 잘 도와주고 모둠 활동에 관심을 보임";
-    render();
+els.form.addEventListener("submit", generateBehavior);
+els.inputText.addEventListener("input", () => {
+  state.inputText = els.inputText.value;
+  persist();
+});
+els.finalText.addEventListener("input", () => {
+  state.finalText = els.finalText.value;
+  updateByteCount();
+  persist();
+});
+els.copyFinalBtn.addEventListener("click", copyFinalText);
+els.sampleBtn.addEventListener("click", () => {
+  state.inputText = SAMPLE_INPUT;
+  persist();
+  render();
+});
+els.clearBtn.addEventListener("click", () => {
+  state = { ...DEFAULT_STATE };
+  persist();
+  render();
+});
+els.subtabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    state.activeView = tab.dataset.view;
     persist();
-    Harness.showToast("샘플 입력을 채웠습니다.");
+    renderTabs();
   });
-  els.clearBtn.addEventListener("click", () => {
-    Harness.clearState(STORAGE_KEY);
-    state = { ...fallbackState };
-    render();
-    Harness.showToast("행동특성 저장 데이터를 초기화했습니다.");
-  });
-  els.tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      state.activeView = tab.dataset.view;
-      persist();
-      renderTabs();
-    });
-  });
-}
+});
 
-bindEvents();
 render();

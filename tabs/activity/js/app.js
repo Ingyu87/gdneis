@@ -8,12 +8,12 @@ const PARTICIPATION_STYLES = [
   "맡은 역할을 책임감 있게 수행함",
   "발표함",
   "자료를 정리함",
-  "실천 활동에 참여함"
+  "실천 활동에 참여함",
 ];
 
 const TERM_PERIODS = {
   "1학기": "2026.03.01.-2026.08.18.",
-  "2학기": "2026.08.19.-2027.02.11."
+  "2학기": "2026.08.19.-2027.02.11.",
 };
 
 const fallbackState = {
@@ -28,7 +28,7 @@ const fallbackState = {
   officerTitle: "회장",
   officerPeriod: TERM_PERIODS["1학기"],
   suggestions: [],
-  finalText: ""
+  finalText: "",
 };
 
 let state = Harness.loadState(STORAGE_KEY, fallbackState);
@@ -53,7 +53,7 @@ const els = {
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
   copyFinalBtn: document.getElementById("copy-final-btn"),
-  resultList: document.getElementById("result-list")
+  resultList: document.getElementById("result-list"),
 };
 
 const persist = Harness.debounce(() => Harness.saveState(STORAGE_KEY, state), 200);
@@ -97,6 +97,7 @@ function renderActivities() {
   const activities = getActivities();
   const availableIds = new Set(activities.map((item) => item.id));
   state.activityIds = state.activityIds.filter((id) => availableIds.has(id));
+
   if (!state.activityIds.length && activities[0]) {
     state.activityIds = [activities[0].id];
   }
@@ -112,6 +113,7 @@ function renderActivities() {
         <span class="choice-item-meta">${item.category}</span>
       </span>
     `;
+
     label.querySelector("input").addEventListener("change", (event) => {
       const selected = new Set(state.activityIds);
       if (event.target.checked) selected.add(item.id);
@@ -122,6 +124,7 @@ function renderActivities() {
       persist();
       render();
     });
+
     els.activityList.appendChild(label);
   });
 }
@@ -145,6 +148,7 @@ function renderChips() {
 
 function renderSuggestions() {
   els.resultList.innerHTML = "";
+
   if (!state.suggestions.length) {
     els.resultList.innerHTML = '<p class="neis-note">AI 특기사항 생성 버튼을 누르면 후보 문장이 표시됩니다.</p>';
     return;
@@ -153,19 +157,30 @@ function renderSuggestions() {
   state.suggestions.forEach((sentence) => {
     const item = document.createElement("div");
     item.className = "result-item";
+    item.tabIndex = 0;
     item.textContent = sentence;
-    item.addEventListener("click", async () => {
+
+    const add = async () => {
       const current = state.finalText.trim();
-      state.finalText = current ? `${current}\n${sentence}` : sentence;
+      state.finalText = current ? `${current} ${sentence}` : sentence;
       els.finalText.value = state.finalText;
       renderMetaOnly();
       persist();
+
       const ok = await Harness.copyText(state.finalText);
       if (ok) {
         Harness.markCopied(item);
         Harness.showToast("후보 문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
       } else {
         Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
+      }
+    };
+
+    item.addEventListener("click", add);
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        add();
       }
     });
     els.resultList.appendChild(item);
@@ -202,11 +217,11 @@ function mockSuggestions(payload) {
     : "";
 
   return [
-    `${activity}에 ${styles}의 태도로 참여하고 공동의 활동이 원활히 이루어지도록 기여함.`,
+    `${activity}에 ${styles}의 태도로 참여하고 공동의 활동이 원활하게 이루어지도록 기여함.`,
     `${activity} 과정에서 친구들의 의견을 경청하고 자신의 생각을 조리 있게 제안하며 협력적인 태도를 보임.`,
     `${activity}에 책임감 있게 참여하며 맡은 일을 끝까지 수행하고 학급 공동체 활동에 성실히 기여함.`,
     `${activity}에서${officer} 친구들과 함께 문제를 해결하려는 태도를 보이고 공동체 의식을 기름.`,
-    `${activity}에 적극적으로 참여하며 활동 과정에서 배려와 소통의 태도를 실천하고 자신의 역할을 충실히 수행함.`
+    `${activity}에 적극적으로 참여하며 활동 과정에서 배려와 소통의 태도를 실천하고 자신의 역할을 충실히 수행함.`,
   ];
 }
 
@@ -222,8 +237,8 @@ async function generateSuggestions() {
       term: state.officerTerm,
       type: state.officerType,
       title: state.officerTitle,
-      period: state.officerPeriod
-    }
+      period: state.officerPeriod,
+    },
   };
 
   els.generateBtn.disabled = true;
@@ -233,9 +248,11 @@ async function generateSuggestions() {
     const response = await fetch("/api/generate-activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
+
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
     const json = await response.json();
     const suggestions = Array.isArray(json.suggestions) ? json.suggestions : [];
     setState({ suggestions });
@@ -256,7 +273,7 @@ function bindEvents() {
     els.officerType,
     els.officerTitle,
     els.officerPeriod,
-    els.finalText
+    els.finalText,
   ].forEach((el) => {
     el.addEventListener("input", syncFromInputs);
     el.addEventListener("change", syncFromInputs);
@@ -289,7 +306,7 @@ function bindEvents() {
       officerTerm: "1학기",
       officerType: "학급",
       officerTitle: "부회장",
-      officerPeriod: TERM_PERIODS["1학기"]
+      officerPeriod: TERM_PERIODS["1학기"],
     });
     Harness.showToast("샘플 입력을 채웠습니다.");
   });
@@ -306,15 +323,6 @@ function bindEvents() {
     const ok = await Harness.copyText(state.finalText);
     Harness.showToast(
       ok ? "최종 문장을 복사했습니다." : "복사에 실패했습니다. 문장을 직접 선택해 복사하세요.",
-      ok ? "success" : "error"
-    );
-  });
-
-  els.finalText.addEventListener("click", async () => {
-    syncFromInputs();
-    const ok = await Harness.copyText(state.finalText);
-    Harness.showToast(
-      ok ? "최종 문장을 복사했습니다." : "복사할 문장이 없습니다.",
       ok ? "success" : "error"
     );
   });
