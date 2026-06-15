@@ -108,6 +108,25 @@ function getSelectedActivities() {
   return selected.length ? selected : activities.slice(0, 1);
 }
 
+function buildOfficerActivity() {
+  if (!state.officerEnabled) return null;
+  const label = `${state.grade}학년: ${state.officerTerm} ${state.officerType} ${state.officerTitle}(${state.officerPeriod})`;
+  return {
+    id: "__officer",
+    terms: [state.semester],
+    category: `${state.grade}학년 ${state.officerTerm} 임원 활동`,
+    title: `${state.officerType} ${state.officerTitle} 임원 활동`,
+    basis: `${label}으로 활동하며 회의 진행, 의견 조율, 학급 공동체 활동 지원, 맡은 역할의 책임 있는 수행을 관찰 근거로 반영`,
+    source: "사용자 입력 임원 활동",
+  };
+}
+
+function getSelectedActivitiesWithOfficer() {
+  const activities = getSelectedActivities();
+  const officerActivity = buildOfficerActivity();
+  return officerActivity ? [...activities, officerActivity] : activities;
+}
+
 function setState(patch) {
   state = { ...state, ...patch };
   persist();
@@ -267,7 +286,7 @@ function renderExamples() {
 }
 
 function renderMetaOnly() {
-  const activities = getSelectedActivities();
+  const activities = getSelectedActivitiesWithOfficer();
   const termLabel = `${state.semester}학기`;
   els.activityBasis.textContent = activities
     .map((item) => `${item.title}: ${item.basis}`)
@@ -298,40 +317,65 @@ function render() {
   renderMetaOnly();
 }
 
-function mockExamples(payload) {
-  const activity = payload.activityBasis?.[0]?.title || "자율·자치활동";
+function mockSentence(payload, item, level, variant) {
   const term = `${payload.semester}학기`;
 
-  if (payload.officer?.enabled) {
+  if (item?.id === "__officer") {
     const officer = `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
-    return {
-      excellent_sentences: [`${officer}으로 활동하며 ${term} ${activity}에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함.`],
-      good_sentences: [`${officer}으로 활동하며 ${term} 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
-      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`],
-    };
+    const excellent = [
+      `${officer}으로 활동하며 ${term} 학급회의 진행과 의견 조율에 책임감을 가지고 참여하여 공동체 의사결정이 원활하게 이루어지도록 기여함.`,
+      `${officer}으로 활동하며 ${term} 학급 구성원의 의견을 경청하고 필요한 역할을 스스로 찾아 실천하는 등 자치활동에서 리더십을 발휘함.`,
+      `${officer}으로 활동하며 ${term} 학급 공동체의 약속 실천을 돕고 친구들이 자율적으로 참여할 수 있도록 차분히 이끄는 모습이 돋보임.`,
+    ];
+    const good = [
+      `${officer}으로 활동하며 ${term} 학급 자치활동에 성실히 참여하고 맡은 역할을 꾸준히 수행함.`,
+      `${officer}으로 활동하며 ${term} 회의와 공동체 활동에서 친구들의 의견을 듣고 학급 운영에 필요한 역할을 수행함.`,
+    ];
+    const effort = [
+      `${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`,
+      `${officer}으로 활동하며 ${term} 안내에 따라 회의와 학급 활동에서 자신의 역할을 실천하려는 태도를 보임.`,
+    ];
+    return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
   }
 
+  const title = item?.title || "자율·자치활동";
+  const excellent = [
+    `${term} ${title} 과정에서 활동의 취지를 이해하고 친구들의 의견을 조율하며 공동의 문제 해결에 적극적으로 참여함.`,
+    `${term} ${title}에 주도적으로 참여하여 학급 공동체의 약속을 실천하고 활동이 원활하게 이루어지도록 기여함.`,
+    `${term} ${title}에서 맡은 역할을 책임감 있게 수행하고 친구들과 협력하여 배운 점을 실천으로 연결함.`,
+  ];
+  const good = [
+    `${term} ${title} 과정에 꾸준히 참여하며 친구의 의견을 듣고 자신의 생각을 차분히 표현함.`,
+    `${term} ${title}에서 맡은 역할을 성실히 수행하고 공동체 활동에 필요한 규칙과 약속을 실천함.`,
+    `${term} ${title}에 관심을 가지고 참여하며 활동 내용을 이해하고 친구들과 함께 실천함.`,
+  ];
+  const effort = [
+    `${term} ${title}의 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
+    `${term} ${title} 과정에서 친구들과 함께하는 활동에 관심을 가지고 자신의 역할을 찾아감.`,
+    `${term} ${title}에 참여하며 학급의 약속과 활동 절차를 이해하고 실천하려는 태도를 보임.`,
+  ];
+  return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
+}
+
+function mockSentencesForLevel(payload, level, count) {
+  const activities = payload.activityBasis?.length ? payload.activityBasis : [{ title: "자율·자치활동" }];
+  return Array.from({ length: count }, (_, index) => {
+    const item = activities[index % activities.length];
+    const variant = Math.floor(index / activities.length);
+    return mockSentence(payload, item, level, variant);
+  });
+}
+
+function mockExamples(payload) {
   return {
-    excellent_sentences: [
-      `${term} ${activity} 과정에서 활동의 취지를 이해하고 친구들의 의견을 조율하며 공동의 문제 해결에 적극적으로 참여함.`,
-      `${term} ${activity}에 주도적으로 참여하여 학급 공동체의 약속을 실천하고 활동이 원활하게 이루어지도록 기여함.`,
-      `${term} ${activity}에서 맡은 역할을 책임감 있게 수행하고 친구들과 협력하여 배운 점을 실천으로 연결함.`,
-    ].slice(0, payload.counts.excellent),
-    good_sentences: [
-      `${term} ${activity} 과정에 꾸준히 참여하며 친구의 의견을 듣고 자신의 생각을 차분히 표현함.`,
-      `${term} ${activity}에서 맡은 역할을 성실히 수행하고 공동체 활동에 필요한 규칙과 약속을 실천함.`,
-      `${term} ${activity}에 관심을 가지고 참여하며 활동 내용을 이해하고 친구들과 함께 실천함.`,
-    ].slice(0, payload.counts.good),
-    effort_sentences: [
-      `${term} ${activity}의 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
-      `${term} ${activity} 과정에서 친구들과 함께하는 활동에 관심을 가지고 자신의 역할을 찾아감.`,
-      `${term} ${activity}에 참여하며 학급의 약속과 활동 절차를 이해하고 실천하려는 태도를 보임.`,
-    ].slice(0, payload.counts.effort),
+    excellent_sentences: mockSentencesForLevel(payload, "excellent", payload.counts.excellent),
+    good_sentences: mockSentencesForLevel(payload, "good", payload.counts.good),
+    effort_sentences: mockSentencesForLevel(payload, "effort", payload.counts.effort),
   };
 }
 
 async function generateExamples() {
-  const activities = getSelectedActivities();
+  const activities = getSelectedActivitiesWithOfficer();
   const payload = {
     schoolYear: state.schoolYear,
     grade: state.grade,

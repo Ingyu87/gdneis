@@ -13,7 +13,26 @@ function officerLabel(body) {
   return `${body.grade}학년: ${officer.term} ${officer.type} ${officer.title}(${officer.period})`;
 }
 
+function buildOfficerActivity(body) {
+  if (!body.officer?.enabled) return null;
+  return {
+    id: "__officer",
+    category: `${body.grade}학년 ${body.officer.term} 임원 활동`,
+    title: `${body.officer.type} ${body.officer.title} 임원 활동`,
+    basis: `${officerLabel(body)}으로 활동하며 회의 진행, 의견 조율, 학급 공동체 활동 지원, 맡은 역할의 책임 있는 수행을 관찰 근거로 반영`,
+    source: "사용자 입력 임원 활동",
+  };
+}
+
+function getActivityItemsWithOfficer(body) {
+  const items = normalizeActivityItems(body);
+  const officerActivity = buildOfficerActivity(body);
+  if (!officerActivity || items.some((item) => item?.id === officerActivity.id)) return items;
+  return [...items, officerActivity];
+}
+
 function inferActivityFocus(item) {
+  const primaryText = `${item?.category || ""} ${item?.title || ""}`;
   const text = `${item?.category || ""} ${item?.title || ""} ${item?.basis || ""}`;
 
   if (/자치|회의|규칙|학급|임원/.test(text)) {
@@ -30,7 +49,14 @@ function inferActivityFocus(item) {
     };
   }
 
-  if (/인성|감정|배려|감사|생명존중|협동|경청|공감|친구/.test(text)) {
+  if (/디지털|디벗|사이버|저작권|정보통신/.test(primaryText)) {
+    return {
+      noun: "디지털 시민교육",
+      verbs: ["디지털 환경의 약속을 지킴", "책임 있는 사용 태도를 보임", "바른 소통 방법을 실천함"],
+    };
+  }
+
+  if (/인성|감정|배려|감사|생명존중|협동|경청|공감|친구/.test(primaryText)) {
     return {
       noun: "공동체형 인성활동",
       verbs: ["서로의 감정을 존중함", "배려와 협동을 실천함", "공동체의 약속을 지킴"],
@@ -41,6 +67,13 @@ function inferActivityFocus(item) {
     return {
       noun: "디지털 시민교육",
       verbs: ["디지털 환경의 약속을 지킴", "책임 있는 사용 태도를 보임", "바른 소통 방법을 실천함"],
+    };
+  }
+
+  if (/인성|감정|배려|감사|생명존중|협동|경청|공감|친구/.test(text)) {
+    return {
+      noun: "공동체형 인성활동",
+      verbs: ["서로의 감정을 존중함", "배려와 협동을 실천함", "공동체의 약속을 지킴"],
     };
   }
 
@@ -83,48 +116,74 @@ function buildOfficerSuggestion(body) {
   return `${officer}으로 활동하며 ${roleAction}`;
 }
 
-function buildMockExamples(body) {
-  if (body.officer?.enabled) {
+function buildMockSentence(body, item, level, variant) {
+  const term = semesterLabel(body);
+  const focus = inferActivityFocus(item);
+
+  if (item?.id === "__officer") {
     const officer = officerLabel(body);
-    const term = semesterLabel(body);
-    return {
-      excellent_sentences: [buildOfficerSuggestion(body)],
-      good_sentences: [`${officer}으로 활동하며 ${term} 공동체 활동에 책임감을 가지고 참여하고 맡은 역할을 성실히 수행함.`],
-      effort_sentences: [`${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`],
-    };
+    const excellent = [
+      `${officer}으로 활동하며 ${term} 학급회의 진행과 의견 조율에 책임감을 가지고 참여하여 공동체 의사결정이 원활하게 이루어지도록 기여함.`,
+      `${officer}으로 활동하며 ${term} 학급 구성원의 의견을 경청하고 필요한 역할을 스스로 찾아 실천하는 등 자치활동에서 리더십을 발휘함.`,
+      `${officer}으로 활동하며 ${term} 학급 공동체의 약속 실천을 돕고 친구들이 자율적으로 참여할 수 있도록 차분히 이끄는 모습이 돋보임.`,
+    ];
+    const good = [
+      `${officer}으로 활동하며 ${term} 학급 자치활동에 성실히 참여하고 맡은 역할을 꾸준히 수행함.`,
+      `${officer}으로 활동하며 ${term} 회의와 공동체 활동에서 친구들의 의견을 듣고 학급 운영에 필요한 역할을 수행함.`,
+    ];
+    const effort = [
+      `${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`,
+      `${officer}으로 활동하며 ${term} 안내에 따라 회의와 학급 활동에서 자신의 역할을 실천하려는 태도를 보임.`,
+    ];
+    return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
   }
 
-  const activityItems = normalizeActivityItems(body).slice(0, 3);
-  const counts = body.counts || {};
-  const term = semesterLabel(body);
-
-  const examples = {
-    excellent_sentences: [],
-    good_sentences: [],
-    effort_sentences: [],
-  };
-
-  activityItems.forEach((item) => {
-    const focus = inferActivityFocus(item);
-    examples.excellent_sentences.push(
+  const excellent = [
       `${term} ${item.title} 과정에서 활동의 취지를 이해하고 ${focus.verbs[1]}으로써 ${focus.noun}에 적극적으로 참여함.`,
-      `${term} ${item.title}에 주도적으로 참여하여 친구들과 협력하고 맡은 역할을 책임감 있게 수행함.`
-    );
-    examples.good_sentences.push(
+    `${term} ${item.title}에 주도적으로 참여하여 친구들과 협력하고 맡은 역할을 책임감 있게 수행함.`,
+    `${term} ${item.title} 활동에서 자신의 생각을 분명히 표현하고 친구들의 의견을 존중하며 활동을 깊이 있게 이어 감.`,
+  ];
+  const good = [
       `${term} ${item.title} 과정에 꾸준히 참여하며 ${focus.verbs[2]}으로써 학년 교육과정에 따른 활동을 성실히 수행함.`,
-      `${term} ${item.title}의 기본 취지를 이해하고 친구들과 함께 활동에 참여함.`
-    );
-    examples.effort_sentences.push(
+    `${term} ${item.title}의 기본 취지를 이해하고 친구들과 함께 활동에 참여함.`,
+  ];
+  const effort = [
       `${term} ${item.title} 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
-      `${term} ${item.title} 과정에서 자신의 역할을 찾아 실천하려는 태도를 보임.`
-    );
+    `${term} ${item.title} 과정에서 자신의 역할을 찾아 실천하려는 태도를 보임.`,
+  ];
+  return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
+}
+
+function buildSentencesForLevel(body, items, level, count) {
+  if (!count || count < 1 || !items.length) return [];
+  return Array.from({ length: count }, (_, index) => {
+    const item = items[index % items.length];
+    const variant = Math.floor(index / items.length);
+    return buildMockSentence(body, item, level, variant);
   });
+}
+
+function buildMockExamples(body) {
+  const activityItems = getActivityItemsWithOfficer(body);
+  const counts = body.counts || {};
 
   return {
-    excellent_sentences: examples.excellent_sentences.slice(0, counts.excellent || 3),
-    good_sentences: examples.good_sentences.slice(0, counts.good || 3),
-    effort_sentences: examples.effort_sentences.slice(0, counts.effort || 3),
+    excellent_sentences: buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3),
+    good_sentences: buildSentencesForLevel(body, activityItems, "good", counts.good || 3),
+    effort_sentences: buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3),
   };
+}
+
+function ensureRequestedCount(body, parsed, field, level, count) {
+  const existing = Array.isArray(parsed[field]) ? parsed[field].filter(Boolean) : [];
+  if (existing.length >= count) return existing.slice(0, count);
+
+  const fallback = buildSentencesForLevel(body, getActivityItemsWithOfficer(body), level, count);
+  const merged = [...existing];
+  fallback.forEach((sentence) => {
+    if (merged.length < count && !merged.includes(sentence)) merged.push(sentence);
+  });
+  return merged.slice(0, count);
 }
 
 function parseJsonSafely(rawText) {
@@ -150,18 +209,16 @@ function parseJsonSafely(rawText) {
 
 async function callGemini(apiKey, body) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-  const activityItems = normalizeActivityItems(body);
+  const activityItems = getActivityItemsWithOfficer(body);
   const selectedTerm = semesterLabel(body);
   const activityText = activityItems
     .map((item) => `- ${item.category || ""} / ${item.title || ""}\n  근거: ${item.basis || ""}\n  출처: ${item.source || "reference MD"}`)
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
   const counts = body.counts || {};
-  const countRule = isOfficerMode
-    ? "임원 활동은 상·중·하 각 1개 예시문장을 작성합니다."
-    : `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 작성합니다.`;
+  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개를 정확히 작성합니다.`;
   const officerRule = isOfficerMode
-    ? `임원 표기는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
+    ? `임원 활동도 활동 근거 중 하나로 반영합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
 
   const systemPrompt = `
@@ -178,6 +235,7 @@ async function callGemini(apiKey, body) {
 - 활동 결과보다 과정에서 드러난 개별 행동 특성, 참여도, 협력, 실제 역할을 중심으로 씁니다.
 - 과장, 단정, 부정적 표현은 쓰지 않습니다.
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
+- 선택된 활동 근거별로 문장을 고르게 만듭니다. 요청 문장 수가 근거 수보다 많으면 근거를 순환하여 빠지는 근거가 없게 합니다.
 - ${countRule}
 - ${officerRule}
 
@@ -216,9 +274,9 @@ ${activityText}
   const parsed = parseJsonSafely(text);
 
   return {
-    excellent_sentences: Array.isArray(parsed.excellent_sentences) ? parsed.excellent_sentences.slice(0, counts.excellent || 3) : [],
-    good_sentences: Array.isArray(parsed.good_sentences) ? parsed.good_sentences.slice(0, counts.good || 3) : [],
-    effort_sentences: Array.isArray(parsed.effort_sentences) ? parsed.effort_sentences.slice(0, counts.effort || 3) : [],
+    excellent_sentences: ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3),
+    good_sentences: ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3),
+    effort_sentences: ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3),
   };
 }
 
@@ -228,7 +286,7 @@ async function handler(req, res) {
   }
 
   const body = req.body || {};
-  const activityItems = normalizeActivityItems(body);
+  const activityItems = getActivityItemsWithOfficer(body);
 
   if (!body.schoolYear || !body.grade || !["1", "2"].includes(String(body.semester || "")) || !activityItems.some((item) => item?.title)) {
     return res.status(400).json({ error: "요청 데이터가 올바르지 않습니다." });
