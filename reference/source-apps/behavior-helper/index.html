@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행동특성 및 종합의견 작성 도우미 (결핍중심 관점에서 강점중심 관점으로)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .main-gradient {
+            background: linear-gradient(135deg, #a8e0ff 0%, #8ee3f5 100%);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #42a5f5 0%, #29b6f6 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .watermark {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 0.75rem;
+            color: rgba(0, 0, 0, 0.4);
+        }
+        textarea:focus, input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.4);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #42a5f5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-item {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db; /* gray-300 */
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .result-item:hover {
+            background-color: #f9fafb; /* gray-50 */
+            border-color: #42a5f5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .result-item.clicked {
+            background-color: #e0f2fe; /* blue-100 */
+            border-color: #42a5f5;
+            color: #1e40af; /* blue-800 */
+            font-weight: 500;
+            cursor: not-allowed;
+            opacity: 0.8;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* --- 탭 스타일 --- */
+        .tab-active {
+            border-bottom: 3px solid #42a5f5;
+            color: #2563eb; /* blue-600 */
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            cursor: default;
+        }
+        .tab-inactive {
+            border-bottom: 3px solid transparent;
+            color: #6b7280; /* gray-500 */
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tab-inactive:hover {
+            color: #3b82f6; /* blue-500 */
+            border-bottom-color: #93c5fd; /* blue-300 */
+        }
+    </style>
+</head>
+<body class="main-gradient min-h-screen flex items-center justify-center p-4">
+    <div class="watermark">서울가동초 백인규</div>
+
+    <div id="app-container" class="w-full max-w-3xl mx-auto">
+
+        <div id="auto-mode-view" class="bg-white/80 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-xl">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">행동특성 및 종합의견 작성 도우미</h1>
+            <p class="text-center text-gray-600 mb-6">(결핍중심 관점에서 강점중심 관점으로)</p>
+
+            <p class="text-center text-gray-600 mb-4">학생의 결핍 중심 문장(특징)을 입력하면 AI가 두 가지 관점의 문장 5개씩을 변환해 드립니다.</p>
+
+            <textarea id="auto-input" class="w-full h-28 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 transition" placeholder="예: 수업에 집중하지 못하고 산만함."></textarea>
+
+            <div class="text-center mt-4">
+                <button id="auto-convert-btn" class="py-2 px-8 text-lg font-bold text-white rounded-lg btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M17.707 3.293a1 1 0 010 1.414l-11 11a1 1 0 01-1.414 0l-5-5a1 1 0 011.414-1.414L6 13.586l10.293-10.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    변환하기
+                </button>
+            </div>
+
+            <!-- 로더 -->
+            <div id="auto-result-loader" class="hidden flex justify-center items-center mt-6 space-x-3">
+                <div class="loader"></div>
+                <span class="text-gray-600 font-semibold">AI가 두 가지 관점의 문장을 생성 중입니다...</span>
+            </div>
+
+            <!-- 결과 영역 (탭 UI 포함) -->
+            <div id="auto-result-area" class="mt-6 hidden">
+
+                <!-- 탭 버튼 UI -->
+                <div class="mb-4 border-b border-gray-300">
+                    <nav class="flex -mb-px sm:space-x-4 space-x-2" aria-label="Tabs">
+                        <button id="tab-strength" class="tab-active text-sm sm:text-base">
+                            강점 중심 변환
+                        </button>
+                        <button id="tab-feedback" class="tab-inactive text-sm sm:text-base">
+                            코칭 중심 변환
+                        </button>
+                    </nav>
+                </div>
+                <p class="text-sm text-gray-600 mb-3 -mt-2">결과 카드를 클릭하면 내용이 복사됩니다.</p>
+
+                <!-- 탭 패널 (강점) -->
+                <div id="auto-results-container-strength" class="space-y-3">
+                    <!-- 강점 결과가 여기에 표시됩니다. -->
+                </div>
+                <!-- 탭 패널 (피드백) -->
+                <div id="auto-results-container-feedback" class="hidden space-y-3">
+                    <!-- 코칭 결과가 여기에 표시됩니다. -->
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+<script>
+// --- DOM Elements ---
+const autoConvertBtn = document.getElementById('auto-convert-btn');
+const autoInput = document.getElementById('auto-input');
+const autoResultArea = document.getElementById('auto-result-area');
+const autoResultLoader = document.getElementById('auto-result-loader');
+
+// 탭 UI 요소
+const strengthTab = document.getElementById('tab-strength');
+const feedbackTab = document.getElementById('tab-feedback');
+const strengthContainer = document.getElementById('auto-results-container-strength');
+const feedbackContainer = document.getElementById('auto-results-container-feedback');
+
+// --- 탭 UI 로직 ---
+strengthTab.addEventListener('click', () => {
+    strengthTab.classList.add('tab-active');
+    strengthTab.classList.remove('tab-inactive');
+    feedbackTab.classList.add('tab-inactive');
+    feedbackTab.classList.remove('tab-active');
+
+    strengthContainer.classList.remove('hidden');
+    feedbackContainer.classList.add('hidden');
+});
+
+feedbackTab.addEventListener('click', () => {
+    feedbackTab.classList.add('tab-active');
+    feedbackTab.classList.remove('tab-inactive');
+    strengthTab.classList.add('tab-inactive');
+    strengthTab.classList.remove('tab-active');
+
+    feedbackContainer.classList.remove('hidden');
+    strengthContainer.classList.add('hidden');
+});
+
+
+// --- API 호출 함수 ---
+async function callGeminiAPI(prompt, isJson = false) {
+    const apiKey = ""; // API 키는 비워두세요.
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+    const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {}
+    };
+
+    if (isJson) {
+        payload.generationConfig.responseMimeType = "application/json";
+    }
+
+    // 재시도 로직 추가
+    let response;
+    for (let i = 0; i < 3; i++) { // 최대 3번 재시도
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.warn("API 응답은 성공했으나 유효한 내용이 없습니다.", result);
+                    throw new Error("API 응답에 유효한 내용이 없습니다.");
+                }
+            } else {
+                throw new Error(`API 요청 실패: ${response.status}`);
+            }
+        } catch (error) {
+            console.error(`Gemini API 호출 오류 (시도 ${i + 1}):`, error);
+            if (i === 2) { // 마지막 재시도 실패
+                const errorMsg = "AI 응답을 가져오는 데 실패했습니다.";
+                return isJson ? `{ "error": "${errorMsg}" }` : errorMsg;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
+    }
+}
+
+// --- 결과 항목 생성 및 복사 로직 (함수로 분리) ---
+function createResultItem(sentence) {
+    const resultDiv = document.createElement('div');
+    resultDiv.textContent = sentence;
+    resultDiv.className = 'result-item'; // 새 CSS 클래스 적용
+
+    resultDiv.addEventListener('click', () => {
+        if (resultDiv.classList.contains('clicked')) {
+            return;
+        }
+
+        // 클립보드 복사 로직 (execCommand 사용)
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = resultDiv.textContent;
+        tempTextArea.style.position = 'absolute';
+        tempTextArea.style.left = '-9999px';
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextArea);
+
+        // 클릭됨(복사됨) 상태로 스타일 변경
+        resultDiv.classList.add('clicked');
+
+        // (선택적) 간단한 피드백
+        const originalText = resultDiv.textContent;
+        resultDiv.textContent = '✅ 복사 완료!';
+        setTimeout(() => {
+            resultDiv.textContent = originalText;
+        }, 1000);
+    });
+    return resultDiv;
+}
+
+
+// --- AI 자동 변환 모드 로직 (2-Track으로 수정) ---
+autoConvertBtn.addEventListener('click', async () => {
+    const inputText = autoInput.value.trim();
+    if (!inputText) {
+        autoInput.placeholder = "문장을 입력해주세요!";
+        autoInput.classList.add('border-red-500');
+        setTimeout(() => {
+            autoInput.placeholder = "예: 수업에 집중하지 못하고 산만함.";
+            autoInput.classList.remove('border-red-500');
+        }, 2000);
+        return;
+    }
+
+    // UI 초기화
+    autoResultArea.classList.add('hidden');
+    strengthContainer.innerHTML = ''; // 이전 결과 초기화
+    feedbackContainer.innerHTML = ''; // 이전 결과 초기화
+    autoResultLoader.classList.remove('hidden');
+    autoConvertBtn.disabled = true;
+
+    // AI에게 두 가지 유형의 결과를 모두 요청하는 프롬프트
+    const prompt = `당신은 초등학교 교사의 학생생활기록부 작성을 돕는 AI 조수입니다. 문법과 어법, 문맥에 완벽하게 맞는, 공식적인 학교 생활기록부에 기재하기에 적절한 문장을 생성해야 합니다.
+
+    **매우 중요: AI가 생성하는 '강점 중심 문장'과 '성장을 위한 코칭 문장'의 내용에는 절대 따옴표(" " 또는 ' ')가 포함되어서는 안 됩니다.**
+
+아래의 '결핍 중심 문장'을 분석하여, '강점 중심 문장' 5개와 '성장을 위한 코칭 문장' 5개로 변환해주세요.
+
+1.  '강점 중심 문장' (strengths):
+    - 학생의 긍정적인 잠재력과 특성을 강조해야 합니다.
+    - 구체적인 예시를 포함하여 '조금 길게' 작성해주세요.
+    - 어미는 '~함.', '~임.', '~음.' 등으로 정중하게 끝내야 합니다.
+
+2.  '성장을 위한 코칭 문장' (coachings):
+    - 학생의 발전을 위한 구체적이고 건설적인 조언을 포함해야 합니다. (예: 자기주도적 학습 계획 수립하는 습관을 기른다면 학업적 부분에서 발전 가능성이 있을 것으로 기대됨.)
+    - ...한다면 ... 것으로 기대됨., ... 부분에 조금 더 주의를 기울인다면 ...할 수 있을 것임.과 같은 형식으로 작성해주세요.
+    - 어미는 '~됨.', '~임.', '~음.' 등으로 정중하게 끝내야 합니다.
+
+결과는 반드시 아래의 JSON 형식으로 반환해주세요.
+{
+  "strengths": ["문장1", "문장2", "문장3", "문장4", "문장5"],
+  "coachings": ["문장1", "문장2", "문장3", "문장4", "문장5"]
+}
+
+결핍 중심 문장: "${inputText}"`;
+
+    try {
+        const responseText = await callGeminiAPI(prompt, true);
+        const results = JSON.parse(responseText);
+
+        let hasStrengths = false;
+        let hasCoachings = false;
+
+        // 강점 결과 렌더링
+        if (Array.isArray(results.strengths) && results.strengths.length > 0) {
+            results.strengths.forEach(sentence => {
+                strengthContainer.appendChild(createResultItem(sentence));
+            });
+            hasStrengths = true;
+        } else {
+            strengthContainer.innerHTML = `<p class="text-gray-500">강점 문장을 생성하지 못했습니다.</p>`;
+        }
+
+        // 피드백 결과 렌더링
+        if (Array.isArray(results.coachings) && results.coachings.length > 0) {
+            results.coachings.forEach(sentence => {
+                feedbackContainer.appendChild(createResultItem(sentence));
+            });
+            hasCoachings = true;
+        } else {
+            feedbackContainer.innerHTML = `<p class="text-gray-500">코칭 문장을 생성하지 못했습니다.</p>`;
+        }
+
+        // 탭 기본 상태 설정 (강점 탭 활성화)
+        strengthTab.classList.add('tab-active');
+        strengthTab.classList.remove('tab-inactive');
+        feedbackTab.classList.add('tab-inactive');
+        feedbackTab.classList.remove('tab-active');
+        strengthContainer.classList.remove('hidden');
+        feedbackContainer.classList.add('hidden');
+
+        // 하나라도 성공했다면 결과 영역 표시
+        if (hasStrengths || hasCoachings) {
+             autoResultArea.classList.remove('hidden');
+        }
+
+    } catch (e) {
+        console.error("JSON 파싱 또는 로직 오류: ", e);
+        const errorMsg = `<p class="text-red-500">AI 응답을 처리하는 중 오류가 발생했습니다. (응답 형식 오류)</p>`;
+        strengthContainer.innerHTML = errorMsg;
+        feedbackContainer.innerHTML = errorMsg;
+        // 오류 시에도 결과 영역은 보여서 오류 메시지를 표시함
+        autoResultArea.classList.remove('hidden');
+        // 오류 시 탭 UI는 숨길 수도 있지만, 여기서는 오류 메시지를 양쪽에 표시하기 위해 유지
+        strengthTab.classList.add('tab-active');
+        strengthTab.classList.remove('tab-inactive');
+        feedbackTab.classList.add('tab-inactive');
+        feedbackTab.classList.remove('tab-active');
+        strengthContainer.classList.remove('hidden');
+        feedbackContainer.classList.add('hidden');
+    } finally {
+        autoResultLoader.classList.add('hidden');
+        autoConvertBtn.disabled = false;
+    }
+});
+
+</script>
+</body>
+</html>
