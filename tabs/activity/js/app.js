@@ -1,19 +1,20 @@
 const STORAGE_KEY = "gdneis.activity.state";
 
 const PARTICIPATION_STYLES = [
-  "주도적으로 참여함",
-  "꾸준히 참여함",
-  "의견을 제안함",
-  "친구와 협력함",
+  "의견을 조율함",
+  "친구의 의견을 경청함",
   "맡은 역할을 책임감 있게 수행함",
-  "발표함",
-  "자료를 정리함",
-  "실천 활동에 참여함",
+  "활동 과정에 꾸준히 참여함",
+  "공동의 문제 해결에 참여함",
+  "실천 방법을 제안함",
+  "자료를 정리하고 발표함",
+  "규칙과 약속을 실천함",
 ];
 
 const TERM_PERIODS = {
   "1학기": "2026.03.01.-2026.08.18.",
   "2학기": "2026.08.19.-2027.02.11.",
+  "1년": "2026.03.01.-2027.02.11.",
 };
 
 const fallbackState = {
@@ -62,6 +63,14 @@ if (!Array.isArray(state.activityIds)) {
   state.activityIds = state.activityId ? [state.activityId] : [];
 }
 
+function normalizeSavedState() {
+  if (!TERM_PERIODS[state.officerTerm]) state.officerTerm = "1학기";
+  if (!["학급", "학년", "전교"].includes(state.officerType)) state.officerType = "학급";
+  if (!state.officerTitle || /�|\?/.test(state.officerTitle)) state.officerTitle = "회장";
+  if (!state.officerPeriod || /�|\?/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
+  state.participationStyles = state.participationStyles.filter((style) => PARTICIPATION_STYLES.includes(style));
+}
+
 function getActivities() {
   const common = themes.common.filter((item) => item.grades.includes(state.grade));
   const gradeSpecific = themes.byGrade[state.grade] || [];
@@ -86,8 +95,8 @@ function syncFromInputs() {
   state.officerEnabled = els.officerEnabled.checked;
   state.officerTerm = els.officerTerm.value;
   state.officerType = els.officerType.value;
-  state.officerTitle = els.officerTitle.value;
-  state.officerPeriod = els.officerPeriod.value;
+  state.officerTitle = els.officerTitle.value.trim() || "회장";
+  state.officerPeriod = els.officerPeriod.value.trim();
   state.finalText = els.finalText.value;
   persist();
   renderMetaOnly();
@@ -146,11 +155,30 @@ function renderChips() {
   });
 }
 
+function appendSuggestion(sentence, item) {
+  const current = state.finalText.trim();
+  state.finalText = current ? `${current} ${sentence}` : sentence;
+  els.finalText.value = state.finalText;
+  renderMetaOnly();
+  persist();
+
+  Harness.copyText(state.finalText).then((ok) => {
+    if (ok) {
+      Harness.markCopied(item);
+      Harness.showToast("후보 문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
+    } else {
+      Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
+    }
+  });
+}
+
 function renderSuggestions() {
   els.resultList.innerHTML = "";
 
   if (!state.suggestions.length) {
-    els.resultList.innerHTML = '<p class="neis-note">AI 특기사항 생성 버튼을 누르면 후보 문장이 표시됩니다.</p>';
+    els.resultList.innerHTML = state.officerEnabled
+      ? '<p class="neis-note">임원 활동 문장 생성 버튼을 누르면 기재요령 형식의 단일 문장이 표시됩니다.</p>'
+      : '<p class="neis-note">AI 특기사항 생성 버튼을 누르면 후보 문장이 표시됩니다.</p>';
     return;
   }
 
@@ -159,28 +187,11 @@ function renderSuggestions() {
     item.className = "result-item";
     item.tabIndex = 0;
     item.textContent = sentence;
-
-    const add = async () => {
-      const current = state.finalText.trim();
-      state.finalText = current ? `${current} ${sentence}` : sentence;
-      els.finalText.value = state.finalText;
-      renderMetaOnly();
-      persist();
-
-      const ok = await Harness.copyText(state.finalText);
-      if (ok) {
-        Harness.markCopied(item);
-        Harness.showToast("후보 문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
-      } else {
-        Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
-      }
-    };
-
-    item.addEventListener("click", add);
+    item.addEventListener("click", () => appendSuggestion(sentence, item));
     item.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        add();
+        appendSuggestion(sentence, item);
       }
     });
     els.resultList.appendChild(item);
@@ -191,6 +202,7 @@ function renderMetaOnly() {
   const activities = getSelectedActivities();
   els.activityBasis.textContent = activities.map((item) => `${item.title}: ${item.basis}`).join(" / ");
   els.officerFields.classList.toggle("hidden", !state.officerEnabled);
+  els.generateBtn.textContent = state.officerEnabled ? "임원 문장 생성" : "AI 특기사항 생성";
   els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
 }
 
@@ -210,18 +222,28 @@ function render() {
 }
 
 function mockSuggestions(payload) {
-  const activity = payload.activityBasis?.map((item) => item.title).join(", ") || "자율·자치활동";
-  const styles = payload.participationStyles?.join(", ") || "꾸준히 참여함";
-  const officer = payload.officer?.enabled
-    ? ` ${payload.grade}학년 ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})로 활동하며`
-    : "";
+  const activity = payload.activityBasis?.[0]?.title || "자율·자치활동";
+  const selected = payload.participationStyles?.join(" ") || "";
+  const participation = /의견|조율|경청/.test(selected)
+    ? "친구의 의견을 경청하고 자신의 생각을 조리 있게 제안하며"
+    : /역할|책임/.test(selected)
+      ? "맡은 역할을 책임감 있게 수행하며"
+      : /자료|발표/.test(selected)
+        ? "활동 내용을 정리하고 친구들과 나누며"
+        : "활동 과정에 꾸준히 참여하며";
+
+  if (payload.officer?.enabled) {
+    return [
+      `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})으로 활동하며 학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 자신의 역할을 책임감 있게 수행함.`,
+    ];
+  }
 
   return [
-    `${activity}에 ${styles}의 태도로 참여하고 공동의 활동이 원활하게 이루어지도록 기여함.`,
-    `${activity} 과정에서 친구들의 의견을 경청하고 자신의 생각을 조리 있게 제안하며 협력적인 태도를 보임.`,
-    `${activity}에 책임감 있게 참여하며 맡은 일을 끝까지 수행하고 학급 공동체 활동에 성실히 기여함.`,
-    `${activity}에서${officer} 친구들과 함께 문제를 해결하려는 태도를 보이고 공동체 의식을 기름.`,
-    `${activity}에 적극적으로 참여하며 활동 과정에서 배려와 소통의 태도를 실천하고 자신의 역할을 충실히 수행함.`,
+    `${activity} 과정에서 ${participation} 활동 과정에서 드러나는 참여도와 협력적 태도가 돋보임.`,
+    `${activity}에서 친구의 의견을 경청하고 자신의 생각을 조리 있게 제안하며 공동의 문제 해결에 참여함.`,
+    `${activity}에 참여하며 맡은 역할을 성실히 수행하고 학교교육계획에 따른 활동을 꾸준히 실천함.`,
+    `${activity} 과정에서 규칙과 약속을 지키며 공동체 활동이 원활하게 이루어지도록 기여함.`,
+    `${activity}에 관심을 가지고 참여하며 활동 내용을 정리하고 친구들과 배운 점을 나눔.`,
   ];
 }
 
@@ -262,7 +284,7 @@ async function generateSuggestions() {
     Harness.showToast("로컬 샘플 후보를 생성했습니다.");
   } finally {
     els.generateBtn.disabled = false;
-    els.generateBtn.textContent = "AI 특기사항 생성";
+    renderMetaOnly();
   }
 }
 
@@ -290,6 +312,7 @@ function bindEvents() {
   els.officerTerm.addEventListener("change", () => {
     els.officerPeriod.value = TERM_PERIODS[els.officerTerm.value];
     syncFromInputs();
+    render();
   });
 
   els.form.addEventListener("submit", (event) => {
@@ -301,7 +324,7 @@ function bindEvents() {
   els.sampleBtn.addEventListener("click", () => {
     setState({
       grade: "4",
-      participationStyles: ["의견을 제안함", "친구와 협력함", "맡은 역할을 책임감 있게 수행함"],
+      participationStyles: ["친구의 의견을 경청함", "의견을 조율함", "맡은 역할을 책임감 있게 수행함"],
       officerEnabled: true,
       officerTerm: "1학기",
       officerType: "학급",
@@ -329,6 +352,7 @@ function bindEvents() {
 }
 
 async function init() {
+  normalizeSavedState();
   const response = await fetch("./data/activity-themes.json");
   const json = await response.json();
   themes = json[state.schoolYear] || { common: [], byGrade: {} };
