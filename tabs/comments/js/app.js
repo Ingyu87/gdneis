@@ -48,6 +48,14 @@ function domainEntries() {
   return planData[state.grade]?.[state.subject] || [];
 }
 
+function domainKey(entry, index) {
+  return `${index}:${entry.domain || ""}`;
+}
+
+function generatedForEntry(generated, entry, index) {
+  return generated[domainKey(entry, index)] || generated[entry.domain] || null;
+}
+
 function syncFromInputs() {
   state.grade = els.grade.value;
   state.subject = els.subject.value;
@@ -74,7 +82,9 @@ function renderOptions() {
 
 function renderMetaOnly() {
   els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
-  els.combineBtn.disabled = Object.keys(state.generatedByDomain || {}).length === 0;
+  const entries = domainEntries();
+  const generated = state.generatedByDomain || {};
+  els.combineBtn.disabled = !entries.length || !entries.every((entry, index) => generatedForEntry(generated, entry, index));
 }
 
 function syncFinalText(value) {
@@ -99,7 +109,7 @@ function renderDomainResults() {
   }
 
   entries.forEach((entry, index) => {
-    const data = generated[entry.domain];
+    const data = generatedForEntry(generated, entry, index);
     if (!data) return;
 
     const card = document.createElement("div");
@@ -209,16 +219,16 @@ async function generateDomains() {
   els.generateBtn.textContent = "생성 중...";
 
   const generated = {};
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
     try {
       const result = await requestDomain(entry);
-      generated[entry.domain] = {
+      generated[domainKey(entry, index)] = {
         excellent_sentences: result.excellent_sentences || [],
         good_sentences: result.good_sentences || [],
         effort_sentences: result.effort_sentences || []
       };
     } catch (_error) {
-      generated[entry.domain] = mockDomainResult(entry);
+      generated[domainKey(entry, index)] = mockDomainResult(entry);
     }
   }
 
@@ -236,31 +246,43 @@ function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-function shuffled(list) {
-  const result = [...list];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
-  }
-  return result;
+function sentencePool(domainData) {
+  return [
+    ...(domainData.excellent_sentences || []),
+    ...(domainData.good_sentences || []),
+    ...(domainData.effort_sentences || [])
+  ].filter(Boolean);
 }
 
 function combineOpinions() {
   syncFromInputs();
   const generated = state.generatedByDomain || {};
-  const domains = Object.values(generated);
-  if (!domains.length) {
+  const entries = domainEntries();
+  if (!entries.length) {
+    Harness.showToast("평가계획 데이터를 찾을 수 없습니다.", "error");
+    return;
+  }
+
+  const domains = entries.map((entry, index) => ({
+    entry,
+    data: generatedForEntry(generated, entry, index)
+  }));
+
+  if (domains.some((domain) => !domain.data)) {
     Harness.showToast("먼저 영역별 예시문장을 생성하세요.", "error");
     return;
   }
 
-  const levels = ["excellent_sentences", "good_sentences", "effort_sentences"];
+  const emptyDomain = domains.find((domain) => sentencePool(domain.data).length === 0);
+  if (emptyDomain) {
+    Harness.showToast(`${emptyDomain.entry.domain} 영역에 조합할 문장이 없습니다. 영역별 예시문장을 다시 생성하세요.`, "error");
+    return;
+  }
+
   const result = [];
   for (let i = 0; i < state.combined; i += 1) {
-    const sentences = shuffled(domains)
-      .map((domain, index) => pickRandom(domain[levels[index % levels.length]] || []))
-      .filter(Boolean);
-    if (sentences.length) result.push(sentences.join(" "));
+    const sentences = domains.map((domain) => pickRandom(sentencePool(domain.data)));
+    result.push(sentences.join(" "));
   }
 
   state.combinedSuggestions = result;
