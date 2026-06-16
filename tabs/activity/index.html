@@ -90,6 +90,52 @@
       gap: 0.75rem;
     }
 
+    .result-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .domain-card {
+      border: 1px solid var(--neis-border-light);
+      border-radius: 0.5rem;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .domain-header {
+      width: 100%;
+      border: 0;
+      background: #f8fafc;
+      padding: 0.8rem 1rem;
+      text-align: left;
+      font: inherit;
+      font-weight: 700;
+      color: var(--neis-navy);
+      cursor: pointer;
+    }
+
+    .domain-body {
+      display: none;
+      padding: 0.75rem;
+      border-top: 1px solid var(--neis-border-light);
+    }
+
+    .domain-card.open .domain-body {
+      display: block;
+    }
+
+    .level-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--neis-text-muted);
+      margin: 0.75rem 0 0.35rem;
+    }
+
+    .level-title:first-child {
+      margin-top: 0;
+    }
+
     .editor {
       width: 100%;
       min-height: 130px;
@@ -128,7 +174,7 @@
 <body class="neis-body">
   <section class="neis-card">
     <div class="neis-card-title">자율·자치활동 특기사항 작성</div>
-    <p class="neis-note">학교교육계획과 학년 교육과정에 근거한 활동을 학년·학기별로 선택하고, 상·중·하 예시문장을 만든 뒤 최종 문장에 이어 붙여 수정합니다.</p>
+    <p class="neis-note">학교교육계획과 학년 교육과정에 근거한 활동을 선택하고, 근거별 예시문장을 생성한 뒤 종합 예시문장을 조합해 최종 문장을 작성합니다.</p>
 
     <div class="activity-layout section-divider">
       <form id="activity-form">
@@ -169,7 +215,7 @@
           <label for="effort-count">하 문장 수</label>
           <input id="effort-count" type="number" min="0" max="25" value="3">
         </div>
-        <p class="neis-note">종합 예시문장은 체크한 활동 근거별 예시를 합친 문장입니다. 근거 1개면 1문장, 2개면 2문장이며 최대 4문장까지 생성됩니다.</p>
+        <p class="neis-note">종합 예시문장은 체크한 활동 근거별 상·중·하 예시를 조합합니다. 근거 1개면 1문장, 최대 4문장까지 생성됩니다.</p>
 
         <div class="section-divider">
           <input id="officer-enabled" class="hidden" type="checkbox">
@@ -202,28 +248,35 @@
         </div>
 
         <div class="button-row">
-          <button class="btn-primary" type="submit" id="generate-btn">AI 예시문장 생성</button>
+          <button class="btn-primary" type="submit" id="generate-btn">1. 근거별 예시문장 생성</button>
+          <button class="btn-outline" type="button" id="combine-btn" disabled>2. 종합 예시문장 조합</button>
           <button class="btn-outline" type="button" id="sample-btn">샘플 입력</button>
           <button class="btn-danger-outline" type="button" id="clear-btn">저장 데이터 초기화</button>
+        </div>
+
+        <div class="section-divider">
+          <div class="section-label">종합 예시문장 조합</div>
+          <p class="neis-note">체크한 활동 근거별 예시를 합칩니다. 근거 1개면 1문장, 2개면 2문장이며 최대 4문장까지 조합됩니다.</p>
+          <div id="combined-list" class="result-list">
+            <p class="neis-note">근거별 예시문장 생성 후 종합 예시문장 조합 버튼을 누르세요.</p>
+          </div>
+        </div>
+
+        <div class="section-divider">
+          <div class="section-label">근거별 예시문장</div>
+          <div id="basis-results" class="result-list">
+            <p class="neis-note">근거별 예시문장 생성 버튼을 누르면 선택한 활동 근거별 문장이 표시됩니다.</p>
+          </div>
         </div>
       </form>
 
       <aside>
-        <div class="field-stack">
-          <label for="final-text">최종 편집 문장</label>
-          <textarea id="final-text" class="editor" placeholder="예시문장을 이어 붙이거나 직접 문장을 작성하세요."></textarea>
-          <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장은 복사 후, 최종 편집 문장의 이어 붙이기로 추가할 수 있습니다.</div>
-        </div>
+        <label class="section-label" for="final-text">최종 편집 문장</label>
+        <textarea id="final-text" class="editor" placeholder="조합 예시문장이나 근거별 예시문장을 이어 붙이거나 직접 작성하세요."></textarea>
+        <div class="meta-line"><span id="byte-count">0 Byte</span> · 예시문장은 복사 후, 최종 편집 문장의 이어 붙이기로 추가할 수 있습니다.</div>
         <div class="button-row">
           <button class="btn-outline" type="button" id="append-final-btn">이어 붙이기</button>
           <button class="btn-primary" type="button" id="copy-final-btn">최종 문장 복사</button>
-        </div>
-
-        <div class="section-divider">
-          <div class="section-label">종합 및 근거별 예시문장</div>
-          <div id="result-list" class="suggestions">
-            <p class="neis-note">AI 예시문장 생성 버튼을 누르면 체크한 활동 근거 수만큼 종합 예시문장(최대 4문장)과 근거별 예시문장을 제시합니다.</p>
-          </div>
         </div>
       </aside>
     </div>

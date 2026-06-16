@@ -58,13 +58,15 @@ const els = {
   officerTitle: document.getElementById("officer-title"),
   officerPeriod: document.getElementById("officer-period"),
   generateBtn: document.getElementById("generate-btn"),
+  combineBtn: document.getElementById("combine-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   clearBtn: document.getElementById("clear-btn"),
+  combinedList: document.getElementById("combined-list"),
+  basisResults: document.getElementById("basis-results"),
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
   copyFinalBtn: document.getElementById("copy-final-btn"),
   appendFinalBtn: document.getElementById("append-final-btn"),
-  resultList: document.getElementById("result-list"),
 };
 
 const persist = Harness.debounce(() => Harness.saveState(STORAGE_KEY, state), 200);
@@ -130,10 +132,6 @@ function getSelectedActivitiesWithOfficer() {
   const activities = getSelectedActivities();
   const officerActivity = buildOfficerActivity();
   return officerActivity ? [...activities, officerActivity] : activities;
-}
-
-function getCombinedSentenceCount() {
-  return Math.min(getSelectedActivitiesWithOfficer().length, MAX_COMBINED_SENTENCES);
 }
 
 function setState(patch) {
@@ -236,89 +234,65 @@ function renderExampleItem(sentence) {
   return Harness.createResultItem(sentence);
 }
 
-function renderExamples() {
-  els.resultList.innerHTML = "";
-  const examples = state.examplesByLevel || {};
-  const basisExamples = state.basisExamples || [];
+function renderCombined() {
+  els.combinedList.innerHTML = "";
   const combinedSentences = state.combinedSentences || [];
-  const total = LEVELS.reduce((sum, level) => sum + (examples[level.field] || []).length, 0)
-    + basisExamples.reduce((sum, entry) => sum
-      + (entry.excellent_sentences || []).length
-      + (entry.good_sentences || []).length
-      + (entry.effort_sentences || []).length, 0)
-    + combinedSentences.length;
-
-  if (!total) {
-    els.resultList.innerHTML = '<p class="neis-note">AI 예시문장 생성 버튼을 누르면 선택한 학년·학기 근거에 맞는 예시문장을 제시합니다.</p>';
+  if (!combinedSentences.length) {
+    els.combinedList.innerHTML = "<p class=\"neis-note\">근거별 예시문장 생성 후 종합 예시문장 조합 버튼을 누르세요.</p>";
     return;
   }
 
-  if (combinedSentences.length) {
-    const combinedCount = getCombinedSentenceCount();
-    const activities = getSelectedActivitiesWithOfficer().slice(0, MAX_COMBINED_SENTENCES);
-    const section = document.createElement("div");
-    section.className = "section-label";
-    section.textContent = `종합 예시문장 (체크한 활동 근거 ${combinedCount}개, 최대 ${MAX_COMBINED_SENTENCES}문장)`;
-    els.resultList.appendChild(section);
-    combinedSentences.forEach((sentence, index) => {
-      if (activities[index]) {
-        const label = document.createElement("div");
-        label.className = "level-title";
-        label.textContent = activities[index].title;
-        els.resultList.appendChild(label);
-      }
-      els.resultList.appendChild(renderExampleItem(sentence));
-    });
-  }
+  const activities = getSelectedActivitiesWithOfficer().slice(0, MAX_COMBINED_SENTENCES);
+  combinedSentences.forEach((sentence, index) => {
+    if (activities[index]) {
+      const label = document.createElement("div");
+      label.className = "level-title";
+      label.textContent = activities[index].title;
+      els.combinedList.appendChild(label);
+    }
+    els.combinedList.appendChild(renderExampleItem(sentence));
+  });
+}
 
-  if (basisExamples.length) {
-    const section = document.createElement("div");
-    section.className = "section-label";
-    section.textContent = "근거별 예시문장";
-    els.resultList.appendChild(section);
-    basisExamples.forEach((entry, index) => {
-      const hasSentences = LEVELS.some((level) => (entry[level.field] || []).length);
-      if (!hasSentences) return;
+function renderBasisResults() {
+  els.basisResults.innerHTML = "";
+  const basisExamples = state.basisExamples || [];
 
-      const group = document.createElement("div");
-      group.className = `domain-card ${index === 0 ? "open" : ""}`;
-
-      const header = document.createElement("button");
-      header.type = "button";
-      header.className = "domain-header";
-      header.textContent = `${entry.title} · ${entry.category}`;
-      header.addEventListener("click", () => group.classList.toggle("open"));
-
-      const body = document.createElement("div");
-      body.className = "domain-body";
-      LEVELS.forEach((level) => {
-        const sentences = entry[level.field] || [];
-        if (!sentences.length) return;
-        body.insertAdjacentHTML("beforeend", `<div class="level-title">${level.title}</div>`);
-        sentences.forEach((sentence) => body.appendChild(renderExampleItem(sentence)));
-      });
-
-      group.append(header, body);
-      els.resultList.appendChild(group);
-    });
+  if (!basisExamples.length) {
+    els.basisResults.innerHTML = "<p class=\"neis-note\">근거별 예시문장 생성 버튼을 누르면 선택한 활동 근거별 문장이 표시됩니다.</p>";
     return;
   }
 
-  LEVELS.forEach((level) => {
-    const sentences = examples[level.field] || [];
-    if (!sentences.length) return;
+  basisExamples.forEach((entry, index) => {
+    const hasSentences = LEVELS.some((level) => (entry[level.field] || []).length);
+    if (!hasSentences) return;
+
     const group = document.createElement("div");
-    group.className = "domain-card open";
+    group.className = `domain-card ${index === 0 ? "open" : ""}`;
+
     const header = document.createElement("button");
     header.type = "button";
     header.className = "domain-header";
-    header.textContent = level.title;
+    header.textContent = `${entry.title} · ${entry.category}`;
     header.addEventListener("click", () => group.classList.toggle("open"));
+
     const body = document.createElement("div");
     body.className = "domain-body";
-    sentences.forEach((sentence) => body.appendChild(renderExampleItem(sentence)));
+    if (entry.basis) {
+      const basisNote = document.createElement("p");
+      basisNote.className = "neis-note";
+      basisNote.textContent = entry.basis;
+      body.appendChild(basisNote);
+    }
+    LEVELS.forEach((level) => {
+      const sentences = entry[level.field] || [];
+      if (!sentences.length) return;
+      body.insertAdjacentHTML("beforeend", `<div class="level-title">${level.title}</div>`);
+      sentences.forEach((sentence) => body.appendChild(renderExampleItem(sentence)));
+    });
+
     group.append(header, body);
-    els.resultList.appendChild(group);
+    els.basisResults.appendChild(group);
   });
 }
 
@@ -332,7 +306,8 @@ function renderMetaOnly() {
     els.activityBasis.textContent = `${termLabel} 근거 - ${els.activityBasis.textContent}`;
   }
   els.officerFields.classList.toggle("hidden", !state.officerEnabled);
-  els.generateBtn.textContent = "AI 예시문장 생성";
+  els.generateBtn.textContent = "1. 근거별 예시문장 생성";
+  els.combineBtn.disabled = !(state.basisExamples || []).length;
   els.byteCount.textContent = `${Harness.byteLength(state.finalText)} Byte`;
 }
 
@@ -350,7 +325,8 @@ function render() {
   els.officerTitle.value = state.officerTitle;
   els.officerPeriod.value = state.officerPeriod;
   els.finalText.value = state.finalText;
-  renderExamples();
+  renderCombined();
+  renderBasisResults();
   renderMetaOnly();
 }
 
@@ -439,51 +415,41 @@ function mockBasisExamples(payload, activities) {
   }));
 }
 
-function mockCombinedSentenceForActivity(payload, activity, basisEntry) {
-  const term = `${payload.semester}학기`;
-
-  if (activity?.id === "__officer") {
-    const officer = `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
-    return `${officer}으로 활동하며 ${term} 학급회의와 공동체 활동에서 맡은 역할을 책임감 있게 수행하고, 친구들의 의견을 조율하는 등 자치활동에 기여함.`;
-  }
-
-  const title = activity?.title || "자율·자치활동";
-  const hasBasisSentences = basisEntry && LEVELS.some((level) => (basisEntry[level.field] || []).length);
-  if (hasBasisSentences) {
-    const sample = basisEntry.excellent_sentences?.[0]
-      || basisEntry.good_sentences?.[0]
-      || basisEntry.effort_sentences?.[0];
-    if (sample) {
-      return sample.replace(/\.$/, "으며, 해당 활동에서 드러난 참여 태도와 협력을 종합하여 기록함.");
-    }
-  }
-
-  return `${term} ${title} 활동에서 활동의 취지를 이해하고 친구들과 협력하며, 배운 내용을 생활 속 실천으로 연결함.`;
+function pickRandom(list) {
+  if (!list.length) return "";
+  return list[Math.floor(Math.random() * list.length)];
 }
 
-function mockCombinedSentences(payload, activities, basisExamples) {
-  const targetItems = activities.slice(0, MAX_COMBINED_SENTENCES);
-  if (!targetItems.length) return [];
+function combineActivitySentences() {
+  syncFromInputs();
+  const basisExamples = state.basisExamples || [];
+  if (!basisExamples.length) {
+    Harness.showToast("먼저 근거별 예시문장을 생성하세요.", "error");
+    return;
+  }
 
-  return targetItems.map((activity, index) => {
+  const activities = getSelectedActivitiesWithOfficer().slice(0, MAX_COMBINED_SENTENCES);
+  const result = activities.map((activity, index) => {
     const basis = basisExamples.find((entry) => entry.id === activity.id) || basisExamples[index];
-    return mockCombinedSentenceForActivity(payload, activity, basis);
-  });
+    if (!basis) return "";
+
+    const parts = LEVELS
+      .map((level) => pickRandom(basis[level.field] || []))
+      .filter(Boolean);
+
+    return parts.join(" ");
+  }).filter(Boolean);
+
+  state.combinedSentences = result;
+  persist();
+  renderCombined();
+  Harness.showToast("종합 예시문장을 조합했습니다.");
 }
 
 function mockExamples(payload) {
-  const officerBudget = { remaining: payload.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
-  const excellentSentences = mockSentencesForLevel(payload, "excellent", payload.counts.excellent, officerBudget);
-  const goodSentences = mockSentencesForLevel(payload, "good", payload.counts.good, officerBudget);
-  const effortSentences = mockSentencesForLevel(payload, "effort", payload.counts.effort, officerBudget);
   const activities = payload.activityBasis?.length ? payload.activityBasis : [{ id: "default", title: "자율·자치활동", category: "자율·자치활동" }];
-  const basisExamples = mockBasisExamples(payload, activities);
   return {
-    excellent_sentences: excellentSentences,
-    good_sentences: goodSentences,
-    effort_sentences: effortSentences,
-    basis_examples: basisExamples,
-    combined_sentences: mockCombinedSentences(payload, activities, basisExamples),
+    basis_examples: mockBasisExamples(payload, activities),
   };
 }
 
@@ -510,6 +476,8 @@ async function generateExamples() {
 
   els.generateBtn.disabled = true;
   els.generateBtn.textContent = "생성 중...";
+  state.combinedSentences = [];
+  renderCombined();
 
   try {
     const response = await fetch("/api/generate-activity", {
@@ -521,32 +489,31 @@ async function generateExamples() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const json = await response.json();
-    const examplesByLevel = {
+    state.examplesByLevel = {
       excellent_sentences: json.excellent_sentences || json.examplesByLevel?.excellent_sentences || [],
       good_sentences: json.good_sentences || json.examplesByLevel?.good_sentences || [],
       effort_sentences: json.effort_sentences || json.examplesByLevel?.effort_sentences || [],
     };
-    setState({
-      examplesByLevel,
-      basisExamples: json.basis_examples || json.basisExamples || [],
-      combinedSentences: json.combined_sentences || json.combinedSentences || [],
-    });
-    Harness.showToast(json.mock ? "샘플 예시문장을 생성했습니다." : "특기사항 예시문장을 생성했습니다.");
+    state.basisExamples = json.basis_examples || json.basisExamples || [];
+    state.combinedSentences = [];
+    persist();
+    renderBasisResults();
+    renderCombined();
+    renderMetaOnly();
+    Harness.showToast(json.mock ? "샘플 근거별 예시문장을 생성했습니다." : "근거별 예시문장을 생성했습니다.");
   } catch (_error) {
     const mock = mockExamples(payload);
-    setState({
-      examplesByLevel: {
-        excellent_sentences: mock.excellent_sentences,
-        good_sentences: mock.good_sentences,
-        effort_sentences: mock.effort_sentences,
-      },
-      basisExamples: mock.basis_examples,
-      combinedSentences: mock.combined_sentences,
-    });
-    Harness.showToast("로컬 샘플 예시문장을 생성했습니다.");
+    state.examplesByLevel = { ...fallbackState.examplesByLevel };
+    state.basisExamples = mock.basis_examples;
+    state.combinedSentences = [];
+    persist();
+    renderBasisResults();
+    renderCombined();
+    renderMetaOnly();
+    Harness.showToast("로컬 샘플 근거별 예시문장을 생성했습니다.");
   } finally {
     els.generateBtn.disabled = false;
-    renderMetaOnly();
+    els.generateBtn.textContent = "1. 근거별 예시문장 생성";
   }
 }
 
@@ -602,6 +569,8 @@ function bindEvents() {
     generateExamples();
   });
 
+  els.combineBtn.addEventListener("click", combineActivitySentences);
+
   els.sampleBtn.addEventListener("click", () => {
     setState({
       grade: "4",
@@ -653,5 +622,5 @@ async function init() {
 }
 
 init().catch((error) => {
-  els.resultList.innerHTML = `<p class="neis-note">활동 근거 데이터를 불러오지 못했습니다. ${error.message}</p>`;
+  els.basisResults.innerHTML = `<p class="neis-note">활동 근거 데이터를 불러오지 못했습니다. ${error.message}</p>`;
 });
