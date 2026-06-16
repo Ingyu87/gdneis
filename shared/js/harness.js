@@ -84,6 +84,36 @@ const Harness = (() => {
   }
 
   let lastCopiedSentence = "";
+  const copiedSessionKey = `gdneis.copied.sentences:${window.location.pathname}`;
+  const copiedSentences = new Set(loadCopiedSentences());
+
+  function loadCopiedSentences() {
+    try {
+      const raw = window.sessionStorage.getItem(copiedSessionKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveCopiedSentences() {
+    try {
+      window.sessionStorage.setItem(copiedSessionKey, JSON.stringify([...copiedSentences]));
+    } catch (_error) {
+      // Copy state is a convenience only; ignore storage failures.
+    }
+  }
+
+  function markCopyChecked(item, button, sentence) {
+    if (!item || !button) return;
+    copiedSentences.add(sentence);
+    saveCopiedSentences();
+    item.classList.add("copied");
+    item.setAttribute("aria-label", "복사한 예시문장");
+    button.classList.add("copied");
+    button.textContent = "✓ 복사됨";
+  }
 
   function appendToTextarea(textarea, sentence) {
     const value = String(sentence || "").trim();
@@ -132,11 +162,19 @@ const Harness = (() => {
     copyBtn.className = "copy-button";
     copyBtn.textContent = "복사";
 
+    if (copiedSentences.has(sentence)) {
+      item.classList.add("copied");
+      item.setAttribute("aria-label", "복사한 예시문장");
+      copyBtn.classList.add("copied");
+      copyBtn.textContent = "✓ 복사됨";
+    }
+
     async function copySentence() {
       const ok = await copyText(sentence);
       if (ok) {
         lastCopiedSentence = sentence;
         markCopied(item);
+        markCopyChecked(item, copyBtn, sentence);
         showToast("예시문장을 복사했습니다.");
       } else {
         showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");

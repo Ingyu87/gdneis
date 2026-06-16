@@ -446,6 +446,12 @@ body.neis-body {
   border-color: var(--neis-blue-bright);
 }
 
+.copy-button.copied {
+  border-color: #22c55e;
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .domain-card {
   border: 1px solid var(--neis-border-light);
   border-radius: 0.5rem;
@@ -483,14 +489,36 @@ body.neis-body {
 }
 
 .result-item.clicked {
+  transform: none;
+  box-shadow: none;
+}
+
+.result-item.copied {
+  background-color: #f0fdf4;
+  border-color: #22c55e;
+  box-shadow: inset 3px 0 0 #22c55e, 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.result-item.copied .result-item-text::before {
+  content: "✓ 복사됨";
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 800;
+  vertical-align: 0.08rem;
+}
+
+.result-item.clicked:not(.copied) {
   background-color: #e0f2fe;
   border-color: var(--neis-blue-bright);
   color: #1e40af;
   font-weight: 500;
   cursor: not-allowed;
   opacity: 0.8;
-  transform: none;
-  box-shadow: none;
 }
 
 .neis-toast {
