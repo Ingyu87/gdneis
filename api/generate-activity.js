@@ -1,4 +1,9 @@
 const MODEL = "gemini-2.5-flash";
+const MAX_COMBINED_SENTENCES = 4;
+
+function combinedSentenceCount(items) {
+  return Math.min(items.length, MAX_COMBINED_SENTENCES);
+}
 
 function normalizeActivityItems(body) {
   return Array.isArray(body.activityBasis) ? body.activityBasis : [body.activityBasis].filter(Boolean);
@@ -177,12 +182,14 @@ function buildMockExamples(body) {
   const goodSentences = buildSentencesForLevel(body, activityItems, "good", counts.good || 3, officerBudget);
   const effortSentences = buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3, officerBudget);
 
+  const basisExamples = buildBasisExamples(body, activityItems);
+
   return {
     excellent_sentences: excellentSentences,
     good_sentences: goodSentences,
     effort_sentences: effortSentences,
-    basis_examples: buildBasisExamples(body, activityItems),
-    combined_sentences: buildCombinedSentences(body, activityItems),
+    basis_examples: basisExamples,
+    combined_sentences: buildCombinedSentences(body, activityItems, basisExamples),
   };
 }
 
@@ -221,22 +228,51 @@ function buildBasisExamples(body, items) {
   }));
 }
 
-function buildCombinedSentences(body, items) {
+function buildCombinedSentenceForItem(body, item, basisEntry) {
   const term = semesterLabel(body);
-  const regularItems = items.filter((item) => item.id !== "__officer");
-  const titles = regularItems.slice(0, 4).map((item) => item.title).join(", ");
-  const officer = buildOfficerActivity(body);
-  const officerText = officer ? ` ${officerLabel(body)}으로서 맡은 역할을 책임감 있게 수행하고,` : "";
-  const templates = [
-    `${term} ${titles || "선택 근거"} 활동에 두루 참여하며${officerText} 친구들의 의견을 존중하고 학급 공동체의 약속을 실천하는 태도가 돋보임.`,
-    `${term} 여러 자율·자치활동에서 활동의 취지를 이해하고 독서, 인성, 문예체 등 선택 근거와 관련된 활동에 성실히 참여하며 공동체 생활에 기여함.`,
-    `${term} 학급 활동과 창의주제활동에 꾸준히 참여하여 자신의 역할을 찾아 실천하고 친구들과 협력하며 배운 내용을 생활 속 실천으로 연결함.`,
-    `${term} 다양한 자율·자치활동에 관심을 가지고 참여하며 공동체의 약속을 지키고 친구들과 협력하는 모습이 돋보임.`,
-    `${term} 선택한 활동 근거에 따라 꾸준히 참여하고 배운 내용을 생활 속 실천으로 연결하려는 태도를 보임.`,
-  ];
-  const count = body.counts?.combined ?? 3;
-  if (!count) return [];
-  return Array.from({ length: count }, (_, index) => templates[index % templates.length]);
+
+  if (item?.id === "__officer") {
+    return `${officerLabel(body)}으로 활동하며 ${term} 학급회의와 공동체 활동에서 맡은 역할을 책임감 있게 수행하고, 친구들의 의견을 조율하는 등 자치활동에 기여함.`;
+  }
+
+  const focus = inferActivityFocus(item);
+  const hasBasisSentences = basisEntry && (
+    (Array.isArray(basisEntry.excellent_sentences) && basisEntry.excellent_sentences.length)
+    || (Array.isArray(basisEntry.good_sentences) && basisEntry.good_sentences.length)
+    || (Array.isArray(basisEntry.effort_sentences) && basisEntry.effort_sentences.length)
+  );
+
+  if (hasBasisSentences) {
+    return `${term} ${item.title} 활동에서 ${focus.verbs[0]}으며, ${focus.noun}에 성실히 참여하고 배운 내용을 생활 속 실천으로 연결함.`;
+  }
+
+  return `${term} ${item.title} 과정에서 ${focus.verbs[0]}으며 ${focus.noun}에 적극 참여함.`;
+}
+
+function buildCombinedSentences(body, items, basisExamples = []) {
+  const targetItems = items.slice(0, MAX_COMBINED_SENTENCES);
+  if (!targetItems.length) return [];
+
+  return targetItems.map((item, index) => {
+    const basis = basisExamples.find((entry) => entry.id === item.id) || basisExamples[index];
+    return buildCombinedSentenceForItem(body, item, basis);
+  });
+}
+
+function ensureCombinedSentences(body, parsed, basisExamples) {
+  const items = getActivityItemsWithOfficer(body);
+  const expectedCount = combinedSentenceCount(items);
+  if (!expectedCount) return [];
+
+  const existing = Array.isArray(parsed.combined_sentences) ? parsed.combined_sentences.filter(Boolean) : [];
+  if (existing.length >= expectedCount) return existing.slice(0, expectedCount);
+
+  const fallback = buildCombinedSentences(body, items, basisExamples);
+  const merged = [...existing];
+  fallback.forEach((sentence) => {
+    if (merged.length < expectedCount && !merged.includes(sentence)) merged.push(sentence);
+  });
+  return merged.slice(0, expectedCount);
 }
 
 function isOfficerSentence(body, sentence) {
@@ -315,7 +351,8 @@ async function callGemini(apiKey, body) {
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
   const counts = body.counts || {};
-  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개, 종합 예시문장 ${counts.combined ?? 3}개를 정확히 작성합니다.`;
+  const combinedCount = combinedSentenceCount(activityItems);
+  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개, 종합 예시문장 ${combinedCount}개를 정확히 작성합니다.`;
   const officerRule = isOfficerMode
     ? `임원 활동도 활동 근거 중 하나로 반영하되, 전체 응답에서 임원 활동 문장은 최대 2개만 작성합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
@@ -336,7 +373,8 @@ async function callGemini(apiKey, body) {
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
 - 선택된 활동 근거별로 문장을 고르게 만듭니다. 요청 문장 수가 근거 수보다 많으면 근거를 순환하여 빠지는 근거가 없게 합니다.
 - 근거별 예시문장은 각 활동 근거 카드에 넣을 수 있도록 basis_examples에 활동 근거별로 묶어 작성합니다.
-- 종합 예시문장은 여러 활동 근거를 자연스럽게 결합하여 combined_sentences에 요청한 개수만큼 작성합니다.
+- 종합 예시문장(combined_sentences)은 선택된 각 활동 근거의 basis_examples 상·중·하 예시문장을 하나의 문장으로 합친 것입니다.
+- 활동 근거 1개면 종합 1문장, 2개면 2문장이며, 최대 4문장까지만 작성합니다. combined_sentences[i]는 i번째 활동 근거에 대응합니다.
 - ${countRule}
 - ${officerRule}
 
@@ -379,14 +417,14 @@ ${activityText}
   const goodSentences = ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3, officerBudget);
   const effortSentences = ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3, officerBudget);
 
+  const basisExamples = ensureBasisExamples(body, parsed);
+
   return {
     excellent_sentences: excellentSentences,
     good_sentences: goodSentences,
     effort_sentences: effortSentences,
-    basis_examples: ensureBasisExamples(body, parsed),
-    combined_sentences: Array.isArray(parsed.combined_sentences) && parsed.combined_sentences.length
-      ? parsed.combined_sentences.slice(0, counts.combined ?? 3)
-      : buildCombinedSentences(body, getActivityItemsWithOfficer(body)),
+    basis_examples: basisExamples,
+    combined_sentences: ensureCombinedSentences(body, parsed, basisExamples),
   };
 }
 
