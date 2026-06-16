@@ -353,6 +353,15 @@ function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+function shuffled(list) {
+  const result = [...list];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+  }
+  return result;
+}
+
 function combineActivitySentences() {
   syncFromInputs();
   const basisExamples = (state.basisExamples || []).map(normalizeBasisEntry);
@@ -361,14 +370,14 @@ function combineActivitySentences() {
     return;
   }
 
-  const activities = getSelectedActivitiesWithOfficer();
+  const activityBasisPairs = getSelectedActivitiesWithOfficer().map((activity, index) => ({
+    activity,
+    basis: basisExamples.find((entry) => entry.id === activity.id) || basisExamples[index],
+  }));
   const result = [];
   for (let i = 0; i < state.combinedCount; i += 1) {
-    const parts = activities
-      .map((activity, index) => {
-        const basis = basisExamples.find((entry) => entry.id === activity.id) || basisExamples[index];
-        return pickRandom(entrySentences(basis));
-      })
+    const parts = shuffled(activityBasisPairs)
+      .map(({ basis }) => pickRandom(entrySentences(basis)))
       .filter(Boolean);
 
     if (parts.length) result.push(parts.join(" "));

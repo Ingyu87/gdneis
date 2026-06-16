@@ -112,7 +112,8 @@ const Harness = (() => {
     item.classList.add("copied");
     item.setAttribute("aria-label", "복사한 예시문장");
     button.classList.add("copied");
-    button.textContent = "✓ 복사됨";
+    button.textContent = "✓";
+    button.setAttribute("aria-label", "복사됨");
   }
 
   function appendToTextarea(textarea, sentence) {
@@ -166,7 +167,8 @@ const Harness = (() => {
       item.classList.add("copied");
       item.setAttribute("aria-label", "복사한 예시문장");
       copyBtn.classList.add("copied");
-      copyBtn.textContent = "✓ 복사됨";
+      copyBtn.textContent = "✓";
+      copyBtn.setAttribute("aria-label", "복사됨");
     }
 
     async function copySentence() {

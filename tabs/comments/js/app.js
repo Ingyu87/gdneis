@@ -236,6 +236,15 @@ function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+function shuffled(list) {
+  const result = [...list];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+  }
+  return result;
+}
+
 function combineOpinions() {
   syncFromInputs();
   const generated = state.generatedByDomain || {};
@@ -248,7 +257,7 @@ function combineOpinions() {
   const levels = ["excellent_sentences", "good_sentences", "effort_sentences"];
   const result = [];
   for (let i = 0; i < state.combined; i += 1) {
-    const sentences = domains
+    const sentences = shuffled(domains)
       .map((domain, index) => pickRandom(domain[levels[index % levels.length]] || []))
       .filter(Boolean);
     if (sentences.length) result.push(sentences.join(" "));
