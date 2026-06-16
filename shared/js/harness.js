@@ -79,14 +79,90 @@ const Harness = (() => {
 
   function markCopied(element) {
     if (!element) return;
-    const original = element.dataset.originalText || element.textContent;
-    element.dataset.originalText = original;
     element.classList.add("clicked");
-    element.textContent = "복사 완료";
-    window.setTimeout(() => {
-      element.textContent = original;
-      element.classList.remove("clicked");
-    }, 900);
+    window.setTimeout(() => element.classList.remove("clicked"), 900);
+  }
+
+  let lastCopiedSentence = "";
+
+  function appendToTextarea(textarea, sentence) {
+    const value = String(sentence || "").trim();
+    if (!value) return "";
+    const current = String(textarea.value || "").trim();
+    textarea.value = current ? `${current} ${value}` : value;
+    return textarea.value;
+  }
+
+  function appendLastCopied(textarea) {
+    const value = String(lastCopiedSentence || "").trim();
+    if (!value) {
+      showToast("먼저 예시문장을 복사해 주세요.", "error");
+      return false;
+    }
+    appendToTextarea(textarea, value);
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    showToast("복사한 문장을 최종 문장에 이어 붙였습니다.");
+    return true;
+  }
+
+  function bindFinalAppendButton(button, textarea, onChange) {
+    if (!button || !textarea) return;
+    button.addEventListener("click", () => {
+      if (appendLastCopied(textarea) && typeof onChange === "function") {
+        onChange(textarea.value);
+      }
+    });
+  }
+
+  function createResultItem(sentence) {
+    const item = document.createElement("div");
+    item.className = "result-item";
+    item.tabIndex = 0;
+
+    const text = document.createElement("span");
+    text.className = "result-item-text";
+    text.textContent = sentence;
+
+    const actions = document.createElement("div");
+    actions.className = "result-item-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "copy-button";
+    copyBtn.textContent = "복사";
+
+    async function copySentence() {
+      const ok = await copyText(sentence);
+      if (ok) {
+        lastCopiedSentence = sentence;
+        markCopied(item);
+        showToast("예시문장을 복사했습니다.");
+      } else {
+        showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
+      }
+    }
+
+    copyBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copySentence();
+    });
+
+    text.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copySentence();
+    });
+
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        copySentence();
+      }
+    });
+
+    actions.appendChild(copyBtn);
+    item.append(text, actions);
+    return item;
   }
 
   function insertTeacherGuidanceNotice() {
@@ -123,6 +199,10 @@ const Harness = (() => {
     showToast,
     byteLength,
     markCopied,
+    createResultItem,
+    appendToTextarea,
+    appendLastCopied,
+    bindFinalAppendButton,
     insertTeacherGuidanceNotice
   };
 })();

@@ -30,7 +30,8 @@ const els = {
   domainResults: document.getElementById("domain-results"),
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
-  copyFinalBtn: document.getElementById("copy-final-btn")
+  copyFinalBtn: document.getElementById("copy-final-btn"),
+  appendFinalBtn: document.getElementById("append-final-btn"),
 };
 
 const persist = Harness.debounce(() => Harness.saveState(STORAGE_KEY, state), 200);
@@ -76,58 +77,15 @@ function renderMetaOnly() {
   els.combineBtn.disabled = Object.keys(state.generatedByDomain || {}).length === 0;
 }
 
-function appendToFinal(sentence) {
-  const current = els.finalText.value.trim();
-  state.finalText = current ? `${current} ${sentence}` : sentence;
-  els.finalText.value = state.finalText;
-  els.finalText.focus();
-  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
+function syncFinalText(value) {
+  state.finalText = value;
+  els.finalText.value = value;
   renderMetaOnly();
   persist();
 }
 
-async function appendAndCopy(sentence, element, label) {
-  appendToFinal(sentence);
-  const ok = await Harness.copyText(state.finalText);
-  if (ok) {
-    if (element) {
-      element.classList.add("clicked");
-      window.setTimeout(() => element.classList.remove("clicked"), 900);
-    }
-    Harness.showToast(`${label} 이어 붙이고 최종 종합의견 전체를 복사했습니다.`);
-  } else {
-    Harness.showToast("복사에 실패했습니다.", "error");
-  }
-}
-
-function renderSentenceItem(sentence, label) {
-  const item = document.createElement("div");
-  item.className = "result-item";
-  item.tabIndex = 0;
-
-  const text = document.createElement("span");
-  text.className = "result-item-text";
-  text.textContent = sentence;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "copy-button";
-  button.textContent = "이어 붙이기";
-
-  const add = () => appendAndCopy(sentence, item, label);
-  item.append(text, button);
-  item.addEventListener("click", add);
-  item.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      add();
-    }
-  });
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    add();
-  });
-  return item;
+function renderSentenceItem(sentence) {
+  return Harness.createResultItem(sentence);
 }
 
 function renderDomainResults() {
@@ -158,11 +116,11 @@ function renderDomainResults() {
       <p class="neis-note">${entry.standard || ""}</p>
       <div class="level-title">상 예시문장</div>
     `;
-    (data.excellent_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "상 예시문장을")));
+    (data.excellent_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence)));
     body.insertAdjacentHTML("beforeend", '<div class="level-title">중 예시문장</div>');
-    (data.good_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "중 예시문장을")));
+    (data.good_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence)));
     body.insertAdjacentHTML("beforeend", '<div class="level-title">하 예시문장</div>');
-    (data.effort_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence, "하 예시문장을")));
+    (data.effort_sentences || []).forEach((sentence) => body.appendChild(renderSentenceItem(sentence)));
 
     card.append(header, body);
     els.domainResults.appendChild(card);
@@ -176,7 +134,7 @@ function renderCombined() {
     return;
   }
   state.combinedSuggestions.forEach((sentence) => {
-    els.combinedList.appendChild(renderSentenceItem(sentence, "종합의견 예시문장을"));
+    els.combinedList.appendChild(renderSentenceItem(sentence));
   });
 }
 
@@ -341,6 +299,7 @@ function bindEvents() {
     Harness.showToast("학기말 종합의견 저장 데이터를 초기화했습니다.");
   });
   els.copyFinalBtn.addEventListener("click", copyFinal);
+  Harness.bindFinalAppendButton(els.appendFinalBtn, els.finalText, syncFinalText);
 }
 
 async function init() {

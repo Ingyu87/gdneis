@@ -24,6 +24,7 @@ const els = {
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
   copyFinalBtn: document.getElementById("copy-final-btn"),
+  appendFinalBtn: document.getElementById("append-final-btn"),
 };
 
 let state = loadState();
@@ -40,16 +41,6 @@ function persist() {
 function setLoading(isLoading) {
   els.generateBtn.disabled = isLoading;
   els.generateBtn.textContent = isLoading ? "생성 중..." : "강점·성장코칭 생성";
-}
-
-function appendToFinal(sentence) {
-  const current = els.finalText.value.trim();
-  state.finalText = current ? `${current} ${sentence}` : sentence;
-  els.finalText.value = state.finalText;
-  els.finalText.focus();
-  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
-  updateByteCount();
-  persist();
 }
 
 function updateByteCount() {
@@ -79,39 +70,7 @@ function renderList(target, sentences, emptyText) {
   }
 
   sentences.forEach((sentence) => {
-    const item = document.createElement("div");
-    item.className = "result-item";
-    item.tabIndex = 0;
-    item.innerHTML = `
-      <span class="result-item-text">${sentence}</span>
-      <button type="button" class="copy-button">이어 붙이기</button>
-    `;
-
-    const add = async () => {
-      appendToFinal(sentence);
-      const ok = await Harness.copyText(state.finalText);
-      if (ok) {
-        item.classList.add("clicked");
-        window.setTimeout(() => item.classList.remove("clicked"), 900);
-        Harness.showToast("최종 편집 문장에 이어 붙이고 복사했습니다.");
-      } else {
-        Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
-      }
-    };
-
-    item.addEventListener("click", add);
-    item.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        add();
-      }
-    });
-    item.querySelector("button").addEventListener("click", (event) => {
-      event.stopPropagation();
-      add();
-    });
-
-    target.appendChild(item);
+    target.appendChild(Harness.createResultItem(sentence));
   });
 }
 
@@ -213,6 +172,11 @@ els.finalText.addEventListener("input", () => {
   persist();
 });
 els.copyFinalBtn.addEventListener("click", copyFinalText);
+Harness.bindFinalAppendButton(els.appendFinalBtn, els.finalText, (value) => {
+  state.finalText = value;
+  updateByteCount();
+  persist();
+});
 els.sampleBtn.addEventListener("click", () => {
   state.inputText = SAMPLE_INPUT;
   persist();

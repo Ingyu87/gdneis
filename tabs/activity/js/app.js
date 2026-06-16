@@ -63,6 +63,7 @@ const els = {
   finalText: document.getElementById("final-text"),
   byteCount: document.getElementById("byte-count"),
   copyFinalBtn: document.getElementById("copy-final-btn"),
+  appendFinalBtn: document.getElementById("append-final-btn"),
   resultList: document.getElementById("result-list"),
 };
 
@@ -229,53 +230,8 @@ function renderActivities() {
   els.activityList.appendChild(officerLabel);
 }
 
-function appendExample(sentence, item) {
-  const current = els.finalText.value.trim();
-  state.finalText = current ? `${current} ${sentence}` : sentence;
-  els.finalText.value = state.finalText;
-  els.finalText.focus();
-  els.finalText.setSelectionRange(state.finalText.length, state.finalText.length);
-  renderMetaOnly();
-  persist();
-
-  Harness.copyText(state.finalText).then((ok) => {
-    if (ok) {
-      item.classList.add("clicked");
-      window.setTimeout(() => item.classList.remove("clicked"), 900);
-      Harness.showToast("예시문장을 이어 붙이고 최종 문장 전체를 복사했습니다.");
-    } else {
-      Harness.showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
-    }
-  });
-}
-
 function renderExampleItem(sentence) {
-  const item = document.createElement("div");
-  item.className = "result-item";
-  item.tabIndex = 0;
-
-  const text = document.createElement("span");
-  text.className = "result-item-text";
-  text.textContent = sentence;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "copy-button";
-  button.textContent = "이어 붙이기";
-
-  item.append(text, button);
-  item.addEventListener("click", () => appendExample(sentence, item));
-  item.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      appendExample(sentence, item);
-    }
-  });
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    appendExample(sentence, item);
-  });
-  return item;
+  return Harness.createResultItem(sentence);
 }
 
 function renderExamples() {
@@ -656,6 +612,12 @@ function bindEvents() {
       ok ? "최종 문장을 복사했습니다." : "복사에 실패했습니다. 문장을 직접 선택해 복사하세요.",
       ok ? "success" : "error"
     );
+  });
+
+  Harness.bindFinalAppendButton(els.appendFinalBtn, els.finalText, (value) => {
+    state.finalText = value;
+    renderMetaOnly();
+    persist();
   });
 }
 
