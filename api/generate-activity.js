@@ -23,7 +23,7 @@ function semesterLabel(body) {
 
 function officerLabel(body) {
   const officer = body.officer || {};
-  return `${body.grade}학년: ${officer.term} ${officer.type} ${officer.title}(${officer.period})`;
+  return `${body.grade}학년 ${officer.term} ${officer.type} ${officer.title}(${officer.period})`;
 }
 
 function buildOfficerActivity(body) {

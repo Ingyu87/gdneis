@@ -109,12 +109,13 @@ function getActivities() {
 function getSelectedActivities() {
   const activities = getActivities();
   const selected = activities.filter((item) => state.activityIds.includes(item.id));
+  if (state.officerEnabled) return selected;
   return selected.length ? selected : activities.slice(0, 1);
 }
 
 function buildOfficerActivity() {
   if (!state.officerEnabled) return null;
-  const label = `${state.grade}학년: ${state.officerTerm} ${state.officerType} ${state.officerTitle}(${state.officerPeriod})`;
+  const label = `${state.grade}학년 ${state.officerTerm} ${state.officerType} ${state.officerTitle}(${state.officerPeriod})`;
   return {
     id: "__officer",
     terms: [state.semester],
@@ -170,7 +171,7 @@ function renderActivities() {
   const availableIds = new Set(activities.map((item) => item.id));
   state.activityIds = state.activityIds.filter((id) => availableIds.has(id));
 
-  if (!state.activityIds.length && activities[0]) {
+  if (!state.activityIds.length && activities[0] && !state.officerEnabled) {
     state.activityIds = [activities[0].id];
   }
   state.activityId = state.activityIds[0] || "";
@@ -184,9 +185,9 @@ function renderActivities() {
 
   activities.forEach((item) => {
     const label = document.createElement("label");
-    label.className = `choice-item ${state.activityIds.includes(item.id) ? "active" : ""}`;
+    label.className = `choice-item ${state.activityIds.includes(item.id) ? "active" : ""} ${state.officerEnabled ? "disabled" : ""}`;
     label.innerHTML = `
-      <input type="checkbox" value="${item.id}" ${state.activityIds.includes(item.id) ? "checked" : ""}>
+      <input type="checkbox" value="${item.id}" ${state.activityIds.includes(item.id) ? "checked" : ""} ${state.officerEnabled ? "disabled" : ""}>
       <span>
         <span class="choice-item-title">${item.title}</span>
         <span class="choice-item-meta">${item.category}</span>
@@ -220,6 +221,7 @@ function renderActivities() {
 
   officerLabel.querySelector("input").addEventListener("change", (event) => {
     state.officerEnabled = event.target.checked;
+    if (state.officerEnabled) state.activityIds = [];
     if (!state.officerPeriod) state.officerPeriod = TERM_PERIODS[state.officerTerm];
     resetGeneratedResults();
     persist();
@@ -320,7 +322,7 @@ function mockSentence(payload, item, variant) {
   const term = `${payload.semester}학기`;
 
   if (item?.id === "__officer") {
-    const officer = `${payload.grade}학년: ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
+    const officer = `${payload.grade}학년 ${payload.officer.term} ${payload.officer.type} ${payload.officer.title}(${payload.officer.period})`;
     const sentences = [
       `${officer}으로 활동하며 ${term} 학급회의 진행과 의견 조율에 책임감을 가지고 참여하여 공동체 의사결정이 원활하게 이루어지도록 기여함.`,
       `${officer}으로 활동하며 ${term} 학급 구성원의 의견을 경청하고 필요한 역할을 스스로 찾아 실천하는 등 자치활동에서 리더십을 발휘함.`,
