@@ -1,8 +1,16 @@
 const MODEL = "gemini-2.5-flash";
-const MAX_COMBINED_SENTENCES = 4;
+const MAX_COUNT = 25;
 
-function combinedSentenceCount(items) {
-  return Math.min(items.length, MAX_COMBINED_SENTENCES);
+function clampCount(value, fallback) {
+  return Math.min(Math.max(Number.parseInt(value, 10) || fallback, 1), MAX_COUNT);
+}
+
+function normalizeCounts(body) {
+  const counts = body.counts || {};
+  return {
+    basis: clampCount(counts.basis ?? counts.excellent, 3),
+    combined: clampCount(counts.combined, 5),
+  };
 }
 
 function normalizeActivityItems(body) {
@@ -109,216 +117,109 @@ function inferActivityFocus(item) {
   };
 }
 
-function buildOfficerSuggestion(body) {
-  const officer = officerLabel(body);
+function buildMockSentence(body, item, variant) {
   const term = semesterLabel(body);
-  const activityItems = normalizeActivityItems(body);
-  const hasCouncil = activityItems.some((item) => /자치|회의|규칙|학급/.test(`${item.title || ""} ${item.basis || ""}`));
-  const roleAction = hasCouncil
-    ? `${term} 학급 자치활동에서 친구들의 의견을 경청하고 회의가 원활하게 이루어지도록 맡은 역할을 책임감 있게 수행함.`
-    : `${term} 공동체 활동에서 친구들의 의견을 경청하고 맡은 역할을 책임감 있게 수행함.`;
-
-  return `${officer}으로 활동하며 ${roleAction}`;
-}
-
-function buildMockSentence(body, item, level, variant) {
-  const term = semesterLabel(body);
-  const focus = inferActivityFocus(item);
 
   if (item?.id === "__officer") {
     const officer = officerLabel(body);
-    const excellent = [
+    const sentences = [
       `${officer}으로 활동하며 ${term} 학급회의 진행과 의견 조율에 책임감을 가지고 참여하여 공동체 의사결정이 원활하게 이루어지도록 기여함.`,
       `${officer}으로 활동하며 ${term} 학급 구성원의 의견을 경청하고 필요한 역할을 스스로 찾아 실천하는 등 자치활동에서 리더십을 발휘함.`,
       `${officer}으로 활동하며 ${term} 학급 공동체의 약속 실천을 돕고 친구들이 자율적으로 참여할 수 있도록 차분히 이끄는 모습이 돋보임.`,
-    ];
-    const good = [
-      `${officer}으로 활동하며 ${term} 학급 자치활동에 성실히 참여하고 맡은 역할을 꾸준히 수행함.`,
       `${officer}으로 활동하며 ${term} 회의와 공동체 활동에서 친구들의 의견을 듣고 학급 운영에 필요한 역할을 수행함.`,
     ];
-    const effort = [
-      `${officer}으로 활동하며 임원 역할을 이해하고 ${term} 학급 공동체 활동에 참여하려고 노력함.`,
-      `${officer}으로 활동하며 ${term} 안내에 따라 회의와 학급 활동에서 자신의 역할을 실천하려는 태도를 보임.`,
-    ];
-    return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
+    return sentences[variant % sentences.length];
   }
 
-  const excellent = [
-      `${term} ${item.title} 과정에서 활동의 취지를 이해하고 ${focus.verbs[1]}으로써 ${focus.noun}에 적극적으로 참여함.`,
+  const focus = inferActivityFocus(item);
+  const sentences = [
+    `${term} ${item.title} 과정에서 활동의 취지를 이해하고 ${focus.verbs[0]}으로써 ${focus.noun}에 성실히 참여함.`,
     `${term} ${item.title}에 주도적으로 참여하여 친구들과 협력하고 맡은 역할을 책임감 있게 수행함.`,
     `${term} ${item.title} 활동에서 자신의 생각을 분명히 표현하고 친구들의 의견을 존중하며 활동을 깊이 있게 이어 감.`,
-  ];
-  const good = [
-      `${term} ${item.title} 과정에 꾸준히 참여하며 ${focus.verbs[2]}으로써 학년 교육과정에 따른 활동을 성실히 수행함.`,
+    `${term} ${item.title} 과정에 꾸준히 참여하며 ${focus.verbs[1]}으로써 배운 내용을 생활 속 실천으로 연결함.`,
     `${term} ${item.title}의 기본 취지를 이해하고 친구들과 함께 활동에 참여함.`,
   ];
-  const effort = [
-      `${term} ${item.title} 활동 내용을 이해하고 안내에 따라 공동체 활동에 참여하려고 노력함.`,
-    `${term} ${item.title} 과정에서 자신의 역할을 찾아 실천하려는 태도를 보임.`,
-  ];
-  return { excellent, good, effort }[level][variant % { excellent, good, effort }[level].length];
+  return sentences[variant % sentences.length];
 }
 
-function buildSentencesForLevel(body, items, level, count, officerBudget = null) {
-  if (!count || count < 1 || !items.length) return [];
-  return Array.from({ length: count }, (_, index) => {
-    const officerItem = items.find((item) => item?.id === "__officer");
-    const regularItems = items.filter((item) => item?.id !== "__officer");
-    const canUseOfficer = officerItem && (!officerBudget || officerBudget.remaining > 0);
-    const cycleItems = canUseOfficer ? [...regularItems, officerItem] : regularItems;
-    const safeItems = cycleItems.length ? cycleItems : items;
-    const item = safeItems[index % safeItems.length];
-    const variant = Math.floor(index / safeItems.length);
-    if (item?.id === "__officer" && officerBudget) officerBudget.remaining -= 1;
-    return buildMockSentence(body, item, level, variant);
-  });
-}
-
-function buildMockExamples(body) {
-  const activityItems = getActivityItemsWithOfficer(body);
-  const counts = body.counts || {};
-  const officerBudget = { remaining: body.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
-  const excellentSentences = buildSentencesForLevel(body, activityItems, "excellent", counts.excellent || 3, officerBudget);
-  const goodSentences = buildSentencesForLevel(body, activityItems, "good", counts.good || 3, officerBudget);
-  const effortSentences = buildSentencesForLevel(body, activityItems, "effort", counts.effort || 3, officerBudget);
-
-  const basisExamples = buildBasisExamples(body, activityItems);
-
-  return {
-    excellent_sentences: excellentSentences,
-    good_sentences: goodSentences,
-    effort_sentences: effortSentences,
-    basis_examples: basisExamples,
-    combined_sentences: buildCombinedSentences(body, activityItems, basisExamples),
-  };
-}
-
-function distributeCount(total, itemCount) {
-  if (!itemCount) return [];
-  const base = Math.floor(total / itemCount);
-  const remainder = total % itemCount;
-  return Array.from({ length: itemCount }, (_, index) => base + (index < remainder ? 1 : 0));
-}
-
-function buildBasisLevelSentences(body, item, level, count, officerBudget) {
-  if (!count || count < 1) return [];
-  if (item.id === "__officer") {
-    const usable = Math.min(count, officerBudget.remaining);
-    officerBudget.remaining -= usable;
-    return Array.from({ length: usable }, (_, index) => buildMockSentence(body, item, level, index));
-  }
-  return Array.from({ length: count }, (_, index) => buildMockSentence(body, item, level, index));
+function entrySentences(entry) {
+  if (Array.isArray(entry?.sentences)) return entry.sentences.filter(Boolean);
+  return [
+    ...(Array.isArray(entry?.excellent_sentences) ? entry.excellent_sentences : []),
+    ...(Array.isArray(entry?.good_sentences) ? entry.good_sentences : []),
+    ...(Array.isArray(entry?.effort_sentences) ? entry.effort_sentences : []),
+  ].filter(Boolean);
 }
 
 function buildBasisExamples(body, items) {
-  const counts = body.counts || {};
-  const excellentCounts = distributeCount(counts.excellent || 3, items.length);
-  const goodCounts = distributeCount(counts.good || 3, items.length);
-  const effortCounts = distributeCount(counts.effort || 3, items.length);
-  const officerBudget = { remaining: body.officer?.enabled ? 2 : Number.POSITIVE_INFINITY };
-
-  return items.map((item, index) => ({
+  const counts = normalizeCounts(body);
+  return items.map((item) => ({
     id: item.id,
     category: item.category,
     title: item.title,
     basis: item.basis,
-    excellent_sentences: buildBasisLevelSentences(body, item, "excellent", excellentCounts[index], officerBudget),
-    good_sentences: buildBasisLevelSentences(body, item, "good", goodCounts[index], officerBudget),
-    effort_sentences: buildBasisLevelSentences(body, item, "effort", effortCounts[index], officerBudget),
+    sentences: Array.from({ length: counts.basis }, (_, index) => buildMockSentence(body, item, index)),
   }));
 }
 
-function buildCombinedSentenceForItem(body, item, basisEntry) {
-  const term = semesterLabel(body);
-
-  if (item?.id === "__officer") {
-    return `${officerLabel(body)}으로 활동하며 ${term} 학급회의와 공동체 활동에서 맡은 역할을 책임감 있게 수행하고, 친구들의 의견을 조율하는 등 자치활동에 기여함.`;
-  }
-
-  const focus = inferActivityFocus(item);
-  const hasBasisSentences = basisEntry && (
-    (Array.isArray(basisEntry.excellent_sentences) && basisEntry.excellent_sentences.length)
-    || (Array.isArray(basisEntry.good_sentences) && basisEntry.good_sentences.length)
-    || (Array.isArray(basisEntry.effort_sentences) && basisEntry.effort_sentences.length)
-  );
-
-  if (hasBasisSentences) {
-    return `${term} ${item.title} 활동에서 ${focus.verbs[0]}으며, ${focus.noun}에 성실히 참여하고 배운 내용을 생활 속 실천으로 연결함.`;
-  }
-
-  return `${term} ${item.title} 과정에서 ${focus.verbs[0]}으며 ${focus.noun}에 적극 참여함.`;
+function pickByIndex(list, index) {
+  if (!list.length) return "";
+  return list[index % list.length];
 }
 
-function buildCombinedSentences(body, items, basisExamples = []) {
-  const targetItems = items.slice(0, MAX_COMBINED_SENTENCES);
-  if (!targetItems.length) return [];
+function buildCombinedSentences(body, items, basisExamples) {
+  const counts = normalizeCounts(body);
+  return Array.from({ length: counts.combined }, (_, combinedIndex) => {
+    const parts = items
+      .map((item, itemIndex) => {
+        const basis = basisExamples.find((entry) => entry.id === item.id) || basisExamples[itemIndex];
+        return pickByIndex(entrySentences(basis), combinedIndex);
+      })
+      .filter(Boolean);
+    return parts.join(" ");
+  }).filter(Boolean);
+}
 
-  return targetItems.map((item, index) => {
-    const basis = basisExamples.find((entry) => entry.id === item.id) || basisExamples[index];
-    return buildCombinedSentenceForItem(body, item, basis);
+function normalizeBasisExamples(body, parsed) {
+  const items = getActivityItemsWithOfficer(body);
+  const counts = normalizeCounts(body);
+  const entries = Array.isArray(parsed.basis_examples) ? parsed.basis_examples : [];
+
+  if (!entries.length) return buildBasisExamples(body, items);
+
+  return items.map((item, index) => {
+    const entry = entries.find((candidate) => candidate.id === item.id) || entries[index] || {};
+    const sentences = entrySentences(entry).slice(0, counts.basis);
+    const fallback = Array.from({ length: counts.basis }, (_, sentenceIndex) => buildMockSentence(body, item, sentenceIndex));
+
+    return {
+      id: item.id || entry.id || `basis-${index}`,
+      category: item.category || entry.category || "",
+      title: item.title || entry.title || "",
+      basis: item.basis || entry.basis || "",
+      sentences: sentences.length >= counts.basis
+        ? sentences
+        : [...sentences, ...fallback.filter((sentence) => !sentences.includes(sentence))].slice(0, counts.basis),
+    };
   });
 }
 
 function ensureCombinedSentences(body, parsed, basisExamples) {
-  const items = getActivityItemsWithOfficer(body);
-  const expectedCount = combinedSentenceCount(items);
-  if (!expectedCount) return [];
-
+  const counts = normalizeCounts(body);
   const existing = Array.isArray(parsed.combined_sentences) ? parsed.combined_sentences.filter(Boolean) : [];
-  if (existing.length >= expectedCount) return existing.slice(0, expectedCount);
+  if (existing.length >= counts.combined) return existing.slice(0, counts.combined);
 
-  const fallback = buildCombinedSentences(body, items, basisExamples);
-  const merged = [...existing];
-  fallback.forEach((sentence) => {
-    if (merged.length < expectedCount && !merged.includes(sentence)) merged.push(sentence);
-  });
-  return merged.slice(0, expectedCount);
+  const fallback = buildCombinedSentences(body, getActivityItemsWithOfficer(body), basisExamples);
+  return [...existing, ...fallback.filter((sentence) => !existing.includes(sentence))].slice(0, counts.combined);
 }
 
-function isOfficerSentence(body, sentence) {
-  if (!body.officer?.enabled) return false;
-  return String(sentence || "").includes(officerLabel(body)) || /임원|회장|부회장/.test(String(sentence || ""));
-}
-
-function ensureRequestedCount(body, parsed, field, level, count, officerBudget) {
-  const existing = [];
-  (Array.isArray(parsed[field]) ? parsed[field].filter(Boolean) : []).forEach((sentence) => {
-    if (!isOfficerSentence(body, sentence)) {
-      existing.push(sentence);
-      return;
-    }
-    if (officerBudget.remaining > 0) {
-      officerBudget.remaining -= 1;
-      existing.push(sentence);
-    }
-  });
-  if (existing.length >= count) return existing.slice(0, count);
-
-  const fallback = buildSentencesForLevel(body, getActivityItemsWithOfficer(body), level, count, officerBudget);
-  const merged = [...existing];
-  fallback.forEach((sentence) => {
-    if (merged.length < count && !merged.includes(sentence)) merged.push(sentence);
-  });
-  return merged.slice(0, count);
-}
-
-function ensureBasisExamples(body, parsed) {
-  const items = getActivityItemsWithOfficer(body);
-  if (Array.isArray(parsed.basis_examples) && parsed.basis_examples.length) {
-    return parsed.basis_examples.map((entry, index) => {
-      const item = items.find((candidate) => candidate.id === entry.id) || items[index] || entry;
-      return {
-        id: item.id || entry.id || `basis-${index}`,
-        category: item.category || entry.category || "",
-        title: item.title || entry.title || "",
-        basis: item.basis || entry.basis || "",
-        excellent_sentences: Array.isArray(entry.excellent_sentences) ? entry.excellent_sentences : [],
-        good_sentences: Array.isArray(entry.good_sentences) ? entry.good_sentences : [],
-        effort_sentences: Array.isArray(entry.effort_sentences) ? entry.effort_sentences : [],
-      };
-    });
-  }
-  return buildBasisExamples(body, items);
+function buildMockExamples(body) {
+  const activityItems = getActivityItemsWithOfficer(body);
+  const basisExamples = buildBasisExamples(body, activityItems);
+  return {
+    basis_examples: basisExamples,
+    combined_sentences: buildCombinedSentences(body, activityItems, basisExamples),
+  };
 }
 
 function parseJsonSafely(rawText) {
@@ -346,15 +247,13 @@ async function callGemini(apiKey, body) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
   const activityItems = getActivityItemsWithOfficer(body);
   const selectedTerm = semesterLabel(body);
+  const counts = normalizeCounts(body);
   const activityText = activityItems
     .map((item) => `- id: ${item.id || ""}\n  ${item.category || ""} / ${item.title || ""}\n  근거: ${item.basis || ""}\n  출처: ${item.source || "reference MD"}`)
     .join("\n");
   const isOfficerMode = Boolean(body.officer?.enabled);
-  const counts = body.counts || {};
-  const combinedCount = combinedSentenceCount(activityItems);
-  const countRule = `상 예시문장 ${counts.excellent || 3}개, 중 예시문장 ${counts.good || 3}개, 하 예시문장 ${counts.effort || 3}개, 종합 예시문장 ${combinedCount}개를 정확히 작성합니다.`;
   const officerRule = isOfficerMode
-    ? `임원 활동도 활동 근거 중 하나로 반영하되, 전체 응답에서 임원 활동 문장은 최대 2개만 작성합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
+    ? `임원 활동도 하나의 영역으로 반영합니다. 임원 활동 문장에는 반드시 "${officerLabel(body)}" 형식을 문장 앞부분에 그대로 포함합니다.`
     : "임원 활동은 언급하지 않습니다.";
 
   const systemPrompt = `
@@ -363,7 +262,7 @@ async function callGemini(apiKey, body) {
 
 기재 기준:
 - 초등학교는 자율·자치활동과 동아리활동 특기사항을 통합하여 문장으로 입력합니다.
-- 선택된 학년과 선택된 학기(${selectedTerm})의 활동 근거에 포함된 내용만 사용합니다.
+- 선택된 학년과 선택된 학기(${selectedTerm})의 영역 근거에 포함된 내용만 사용합니다.
 - 다른 학년, 다른 학기, 다른 악기·운동·동아리·특색활동을 섞지 않습니다.
 - 1학기 근거에 동아리활동이 없으면 동아리활동을 절대 언급하지 않습니다.
 - 1·2학년은 현재 제공된 학년 교육과정 근거에 동아리활동을 넣지 않습니다.
@@ -371,20 +270,20 @@ async function callGemini(apiKey, body) {
 - 활동 결과보다 과정에서 드러난 개별 행동 특성, 참여도, 협력, 실제 역할을 중심으로 씁니다.
 - 과장, 단정, 부정적 표현은 쓰지 않습니다.
 - 문장은 학교생활기록부 문체로 "~함.", "~보임.", "~기여함."처럼 끝냅니다.
-- 선택된 활동 근거별로 문장을 고르게 만듭니다. 요청 문장 수가 근거 수보다 많으면 근거를 순환하여 빠지는 근거가 없게 합니다.
-- 근거별 예시문장은 각 활동 근거 카드에 넣을 수 있도록 basis_examples에 활동 근거별로 묶어 작성합니다.
-- 종합 예시문장(combined_sentences)은 선택된 각 활동 근거의 basis_examples 상·중·하 예시문장을 하나의 문장으로 합친 것입니다.
-- 활동 근거 1개면 종합 1문장, 2개면 2문장이며, 최대 4문장까지만 작성합니다. combined_sentences[i]는 i번째 활동 근거에 대응합니다.
-- ${countRule}
+- 상·중·하 수준 구분은 하지 않습니다.
+- basis_examples에는 선택된 각 영역별로 예시문장 ${counts.basis}개를 sentences 배열에 작성합니다.
+- combined_sentences에는 종합 예시문장 ${counts.combined}개를 작성합니다.
+- 종합 예시문장 1개는 각 영역의 sentences에서 한 문장씩만 뽑아 자연스럽게 이어 붙인 것입니다.
+- 한 영역에서 여러 문장을 뽑아 하나의 종합 예시문장에 넣지 않습니다.
 - ${officerRule}
 
-응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[], "basis_examples": [{"id": string, "title": string, "category": string, "basis": string, "excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]}], "combined_sentences": string[]} JSON만 작성합니다.
+응답은 반드시 {"basis_examples": [{"id": string, "title": string, "category": string, "basis": string, "sentences": string[]}], "combined_sentences": string[]} JSON만 작성합니다.
 `;
   const userPrompt = `
 학년도: ${body.schoolYear}
 학년: ${body.grade}
 선택 학기: ${selectedTerm}
-활동 근거:
+영역:
 ${activityText}
 임원 활동: ${isOfficerMode ? officerLabel(body) : "없음"}
 `;
@@ -411,18 +310,9 @@ ${activityText}
   const result = await response.json();
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   const parsed = parseJsonSafely(text);
-  const officerBudget = { remaining: isOfficerMode ? 2 : Number.POSITIVE_INFINITY };
-
-  const excellentSentences = ensureRequestedCount(body, parsed, "excellent_sentences", "excellent", counts.excellent || 3, officerBudget);
-  const goodSentences = ensureRequestedCount(body, parsed, "good_sentences", "good", counts.good || 3, officerBudget);
-  const effortSentences = ensureRequestedCount(body, parsed, "effort_sentences", "effort", counts.effort || 3, officerBudget);
-
-  const basisExamples = ensureBasisExamples(body, parsed);
+  const basisExamples = normalizeBasisExamples(body, parsed);
 
   return {
-    excellent_sentences: excellentSentences,
-    good_sentences: goodSentences,
-    effort_sentences: effortSentences,
     basis_examples: basisExamples,
     combined_sentences: ensureCombinedSentences(body, parsed, basisExamples),
   };
