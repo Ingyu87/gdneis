@@ -1,5 +1,40 @@
 const MODEL = "gemini-2.5-flash";
 
+function expandMockSentences(templates, count) {
+  const targetCount = Math.max(Number(count || 0), 0);
+  if (!targetCount || !templates.length) return [];
+
+  const qualifiers = [
+    "",
+    " 이 과정에서 꾸준한 태도가 나타남.",
+    " 활동 전반에서 차분한 참여 태도를 보임.",
+    " 배운 내용을 떠올리며 성실하게 참여함.",
+    " 친구와 의견을 나누며 학습에 참여함.",
+    " 안내된 절차를 따라 안정적으로 수행함.",
+    " 자신의 생각을 말로 정리하려는 모습을 보임.",
+    " 수업 흐름에 맞추어 과제를 해결하려고 노력함."
+  ];
+
+  return Array.from({ length: targetCount }, (_, index) => {
+    const template = templates[index % templates.length];
+    const qualifier = qualifiers[Math.floor(index / templates.length) % qualifiers.length];
+    return qualifier ? `${template.replace(/[.。]$/, "")},${qualifier}` : template;
+  });
+}
+
+function normalizeSentenceCount(sentences, fallbackSentences, count) {
+  const targetCount = Math.max(Number(count || 0), 0);
+  const normalized = Array.isArray(sentences) ? sentences.filter(Boolean).slice(0, targetCount) : [];
+  if (normalized.length >= targetCount) return normalized;
+
+  for (const sentence of fallbackSentences || []) {
+    if (normalized.length >= targetCount) break;
+    if (!normalized.includes(sentence)) normalized.push(sentence);
+  }
+
+  return normalized;
+}
+
 function buildMockSuggestions(body) {
   const domains = Array.isArray(body.domains) ? body.domains.slice(0, 4) : [];
   const names = domains.map((entry) => entry.domain).filter(Boolean);
@@ -42,9 +77,9 @@ function buildMockDomainResult(body) {
     `${domain} 수업에서 안내에 따라 과제를 수행하며 기본 내용을 이해하려는 모습을 보임.`
   ];
   return {
-    excellent_sentences: baseExcellent.slice(0, excellentCount),
-    good_sentences: baseGood.slice(0, goodCount),
-    effort_sentences: baseEffort.slice(0, effortCount)
+    excellent_sentences: expandMockSentences(baseExcellent, excellentCount),
+    good_sentences: expandMockSentences(baseGood, goodCount),
+    effort_sentences: expandMockSentences(baseEffort, effortCount)
   };
 }
 
@@ -150,10 +185,11 @@ async function callGeminiForDomain(apiKey, body) {
   const result = await response.json();
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   const parsed = parseJsonSafely(text);
+  const fallback = buildMockDomainResult(body);
   return {
-    excellent_sentences: Array.isArray(parsed.excellent_sentences) ? parsed.excellent_sentences.slice(0, excellentCount) : [],
-    good_sentences: Array.isArray(parsed.good_sentences) ? parsed.good_sentences.slice(0, goodCount) : [],
-    effort_sentences: Array.isArray(parsed.effort_sentences) ? parsed.effort_sentences.slice(0, effortCount) : []
+    excellent_sentences: normalizeSentenceCount(parsed.excellent_sentences, fallback.excellent_sentences, excellentCount),
+    good_sentences: normalizeSentenceCount(parsed.good_sentences, fallback.good_sentences, goodCount),
+    effort_sentences: normalizeSentenceCount(parsed.effort_sentences, fallback.effort_sentences, effortCount)
   };
 }
 

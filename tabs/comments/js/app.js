@@ -160,25 +160,47 @@ function render() {
   renderMetaOnly();
 }
 
+function expandMockSentences(templates, count) {
+  const targetCount = Math.max(Number(count || 0), 0);
+  if (!targetCount || !templates.length) return [];
+
+  const qualifiers = [
+    "",
+    " 이 과정에서 꾸준한 태도가 나타남.",
+    " 활동 전반에서 차분한 참여 태도를 보임.",
+    " 배운 내용을 떠올리며 성실하게 참여함.",
+    " 친구와 의견을 나누며 학습에 참여함.",
+    " 안내된 절차를 따라 안정적으로 수행함.",
+    " 자신의 생각을 말로 정리하려는 모습을 보임.",
+    " 수업 흐름에 맞추어 과제를 해결하려고 노력함."
+  ];
+
+  return Array.from({ length: targetCount }, (_, index) => {
+    const template = templates[index % templates.length];
+    const qualifier = qualifiers[Math.floor(index / templates.length) % qualifiers.length];
+    return qualifier ? `${template.replace(/[.。]$/, "")},${qualifier}` : template;
+  });
+}
+
 function mockDomainResult(domainEntry) {
   const domain = domainEntry.domain || state.subject;
   const standard = domainEntry.standard || "";
   return {
-    excellent_sentences: [
+    excellent_sentences: expandMockSentences([
       `${domain} 영역에서 ${standard ? "성취기준을 바탕으로 " : ""}핵심 개념을 잘 이해하고 활동에 적극적으로 참여함.`,
       `${domain} 학습 과정에서 자신의 생각을 분명히 표현하고 친구와 협력하여 과제를 해결함.`,
       `${domain} 활동에서 배운 내용을 생활 속 사례와 연결하여 설명하는 능력이 돋보임.`
-    ].slice(0, state.excellent),
-    good_sentences: [
+    ], state.excellent),
+    good_sentences: expandMockSentences([
       `${domain} 영역의 기본 내용을 이해하고 수업 활동에 꾸준히 참여함.`,
       `${domain} 학습에서 주어진 과제를 성실히 수행하며 배운 내용을 정리하려고 노력함.`,
       `${domain} 활동 중 친구의 의견을 듣고 자신의 생각을 말하며 학습에 참여함.`
-    ].slice(0, state.good),
-    effort_sentences: [
+    ], state.good),
+    effort_sentences: expandMockSentences([
       `${domain} 영역의 기본 개념을 익히기 위해 수업 활동에 참여하며 점차 자신감을 키워 감.`,
       `${domain} 학습 과제를 해결하는 과정에서 도움을 받아 내용을 정리하고 끝까지 해내려는 태도를 보임.`,
       `${domain} 활동에 관심을 가지고 참여하며 배운 내용을 다시 확인하려고 노력함.`
-    ].slice(0, state.effort)
+    ], state.effort)
   };
 }
 
