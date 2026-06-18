@@ -4,21 +4,41 @@ function expandMockSentences(templates, count) {
   const targetCount = Math.max(Number(count || 0), 0);
   if (!targetCount || !templates.length) return [];
 
-  const qualifiers = [
-    "",
-    " 이 과정에서 꾸준한 태도가 나타남.",
-    " 활동 전반에서 차분한 참여 태도를 보임.",
-    " 배운 내용을 떠올리며 성실하게 참여함.",
-    " 친구와 의견을 나누며 학습에 참여함.",
-    " 안내된 절차를 따라 안정적으로 수행함.",
-    " 자신의 생각을 말로 정리하려는 모습을 보임.",
-    " 수업 흐름에 맞추어 과제를 해결하려고 노력함."
+  const variants = [
+    (sentence) => sentence,
+    (sentence) => sentence.replace("적극적으로 참여함.", "적극적으로 참여하는 모습을 보임.")
+      .replace("과제를 해결함.", "과제를 해결하는 모습을 보임.")
+      .replace("능력이 돋보임.", "능력이 잘 나타남.")
+      .replace("꾸준히 참여함.", "꾸준히 참여하는 모습을 보임.")
+      .replace("정리하려고 노력함.", "정리하려는 태도를 보임.")
+      .replace("학습에 참여함.", "학습에 참여하는 모습을 보임.")
+      .replace("자신감을 키워 감.", "자신감을 키워 가는 모습을 보임.")
+      .replace("태도를 보임.", "태도가 나타남.")
+      .replace("확인하려고 노력함.", "확인하려는 태도를 보임."),
+    (sentence) => sentence.replace("잘 이해하고", "바르게 이해하고")
+      .replace("분명히 표현하고", "차분히 표현하고")
+      .replace("생활 속 사례와", "구체적인 사례와")
+      .replace("기본 내용을 이해하고", "기본 내용을 익히고")
+      .replace("성실히 수행하며", "꾸준히 수행하며")
+      .replace("친구의 의견을 듣고", "친구의 의견을 경청하고")
+      .replace("기본 개념을 익히기 위해", "기본 개념을 이해하기 위해")
+      .replace("도움을 받아", "안내를 받아")
+      .replace("관심을 가지고", "관심을 보이며"),
+    (sentence) => sentence.replace("활동에 적극적으로 참여함.", "수업 활동에 성실하게 참여함.")
+      .replace("친구와 협력하여 과제를 해결함.", "친구와 협력하며 과제를 수행함.")
+      .replace("설명하는 능력이 돋보임.", "설명하는 모습을 보임.")
+      .replace("수업 활동에 꾸준히 참여함.", "수업 활동에 안정적으로 참여함.")
+      .replace("배운 내용을 정리하려고 노력함.", "배운 내용을 정리하는 모습을 보임.")
+      .replace("자신의 생각을 말하며 학습에 참여함.", "자신의 생각을 말하며 학습에 임함.")
+      .replace("점차 자신감을 키워 감.", "조금씩 자신감을 키워 감.")
+      .replace("끝까지 해내려는 태도를 보임.", "끝까지 해내려는 모습을 보임.")
+      .replace("다시 확인하려고 노력함.", "다시 확인하는 태도를 보임.")
   ];
 
   return Array.from({ length: targetCount }, (_, index) => {
     const template = templates[index % templates.length];
-    const qualifier = qualifiers[Math.floor(index / templates.length) % qualifiers.length];
-    return qualifier ? `${template.replace(/[.。]$/, "")},${qualifier}` : template;
+    const variant = variants[Math.floor(index / templates.length) % variants.length];
+    return variant(template);
   });
 }
 
