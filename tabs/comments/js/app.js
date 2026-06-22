@@ -1,4 +1,4 @@
-const STORAGE_KEY = "gdneis.comments.state";
+const STORAGE_KEY = "gdneis.comments.state.v2";
 
 const fallbackState = {
   grade: "4학년",
@@ -54,6 +54,69 @@ function domainKey(entry, index) {
 
 function generatedForEntry(generated, entry, index) {
   return generated[domainKey(entry, index)] || generated[entry.domain] || null;
+}
+
+function splitStandards(standardText) {
+  const text = String(standardText || "").trim();
+  if (!text) return [];
+  const matches = [...text.matchAll(/\[[^\]]+\]\s*([^\[]+)/g)];
+  if (matches.length) return matches.map((match) => match[0].replace(/\/\s*$/, "").trim()).filter(Boolean);
+  return text.split(/\s*\/\s*|\n+/).map((item) => item.trim()).filter(Boolean);
+}
+
+function cleanStandardText(standard) {
+  return String(standard || "")
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\/\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.!?。]+$/g, "")
+    .trim();
+}
+
+function sentenceEnd(text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return "";
+  return /[.!?。]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function standardSentence(domainEntry, level, variant, standard) {
+  const focus = cleanStandardText(standard) || domainEntry.domain || state.subject;
+  const templates = {
+    excellent: [
+      `성취기준 '${focus}'에 따라 핵심 개념을 정확히 이해하고 활동에서 스스로 설명함`,
+      `성취기준 '${focus}'를 바탕으로 탐구 과정에 주도적으로 참여하며 배운 내용을 구체적으로 표현함`,
+      `성취기준 '${focus}'와 관련한 과제를 성실히 해결하고 자신의 생각을 근거를 들어 말함`
+    ],
+    good: [
+      `성취기준 '${focus}'의 기본 흐름을 이해하고 수업 활동에 꾸준히 참여함`,
+      `성취기준 '${focus}'와 관련한 과제를 성실히 수행하며 배운 내용을 정리하려고 노력함`,
+      `성취기준 '${focus}'를 학습하는 과정에서 친구의 의견을 듣고 자신의 생각을 말하며 참여함`
+    ],
+    effort: [
+      `성취기준 '${focus}'의 기초를 익히기 위해 수업 활동에 참여하며 안내에 따라 과제를 수행함`,
+      `성취기준 '${focus}'와 관련한 학습 내용을 다시 확인하며 차근차근 이해하려고 노력함`,
+      `성취기준 '${focus}'를 배우는 과정에서 필요한 도움을 받아 활동에 참여하고 자신감을 길러 감`
+    ]
+  };
+  const pool = templates[level] || templates.good;
+  return sentenceEnd(pool[variant % pool.length]);
+}
+
+function mockLevelSentences(domainEntry, level, count) {
+  const targetCount = Math.max(Number(count || 0), 0);
+  const standards = splitStandards(domainEntry.standard);
+  const standardList = standards.length ? standards : [domainEntry.standard || domainEntry.domain || state.subject];
+  return Array.from({ length: targetCount }, (_, index) =>
+    standardList.map((standard, standardIndex) => standardSentence(domainEntry, level, index + standardIndex, standard)).join(" ")
+  );
+}
+
+function mockDomainResult(domainEntry) {
+  return {
+    excellent_sentences: mockLevelSentences(domainEntry, "excellent", state.excellent),
+    good_sentences: mockLevelSentences(domainEntry, "good", state.good),
+    effort_sentences: mockLevelSentences(domainEntry, "effort", state.effort)
+  };
 }
 
 function syncFromInputs() {
@@ -160,70 +223,6 @@ function render() {
   renderMetaOnly();
 }
 
-function expandMockSentences(templates, count) {
-  const targetCount = Math.max(Number(count || 0), 0);
-  if (!targetCount || !templates.length) return [];
-
-  const variants = [
-    (sentence) => sentence,
-    (sentence) => sentence.replace("적극적으로 참여함.", "적극적으로 참여하는 모습을 보임.")
-      .replace("과제를 해결함.", "과제를 해결하는 모습을 보임.")
-      .replace("능력이 돋보임.", "능력이 잘 나타남.")
-      .replace("꾸준히 참여함.", "꾸준히 참여하는 모습을 보임.")
-      .replace("정리하려고 노력함.", "정리하려는 태도를 보임.")
-      .replace("학습에 참여함.", "학습에 참여하는 모습을 보임.")
-      .replace("자신감을 키워 감.", "자신감을 키워 가는 모습을 보임.")
-      .replace("태도를 보임.", "태도가 나타남.")
-      .replace("확인하려고 노력함.", "확인하려는 태도를 보임."),
-    (sentence) => sentence.replace("잘 이해하고", "바르게 이해하고")
-      .replace("분명히 표현하고", "차분히 표현하고")
-      .replace("생활 속 사례와", "구체적인 사례와")
-      .replace("기본 내용을 이해하고", "기본 내용을 익히고")
-      .replace("성실히 수행하며", "꾸준히 수행하며")
-      .replace("친구의 의견을 듣고", "친구의 의견을 경청하고")
-      .replace("기본 개념을 익히기 위해", "기본 개념을 이해하기 위해")
-      .replace("도움을 받아", "안내를 받아")
-      .replace("관심을 가지고", "관심을 보이며"),
-    (sentence) => sentence.replace("활동에 적극적으로 참여함.", "수업 활동에 성실하게 참여함.")
-      .replace("친구와 협력하여 과제를 해결함.", "친구와 협력하며 과제를 수행함.")
-      .replace("설명하는 능력이 돋보임.", "설명하는 모습을 보임.")
-      .replace("수업 활동에 꾸준히 참여함.", "수업 활동에 안정적으로 참여함.")
-      .replace("배운 내용을 정리하려고 노력함.", "배운 내용을 정리하는 모습을 보임.")
-      .replace("자신의 생각을 말하며 학습에 참여함.", "자신의 생각을 말하며 학습에 임함.")
-      .replace("점차 자신감을 키워 감.", "조금씩 자신감을 키워 감.")
-      .replace("끝까지 해내려는 태도를 보임.", "끝까지 해내려는 모습을 보임.")
-      .replace("다시 확인하려고 노력함.", "다시 확인하는 태도를 보임.")
-  ];
-
-  return Array.from({ length: targetCount }, (_, index) => {
-    const template = templates[index % templates.length];
-    const variant = variants[Math.floor(index / templates.length) % variants.length];
-    return variant(template);
-  });
-}
-
-function mockDomainResult(domainEntry) {
-  const domain = domainEntry.domain || state.subject;
-  const standard = domainEntry.standard || "";
-  return {
-    excellent_sentences: expandMockSentences([
-      `${domain} 영역에서 ${standard ? "성취기준을 바탕으로 " : ""}핵심 개념을 잘 이해하고 활동에 적극적으로 참여함.`,
-      `${domain} 학습 과정에서 자신의 생각을 분명히 표현하고 친구와 협력하여 과제를 해결함.`,
-      `${domain} 활동에서 배운 내용을 생활 속 사례와 연결하여 설명하는 능력이 돋보임.`
-    ], state.excellent),
-    good_sentences: expandMockSentences([
-      `${domain} 영역의 기본 내용을 이해하고 수업 활동에 꾸준히 참여함.`,
-      `${domain} 학습에서 주어진 과제를 성실히 수행하며 배운 내용을 정리하려고 노력함.`,
-      `${domain} 활동 중 친구의 의견을 듣고 자신의 생각을 말하며 학습에 참여함.`
-    ], state.good),
-    effort_sentences: expandMockSentences([
-      `${domain} 영역의 기본 개념을 익히기 위해 수업 활동에 참여하며 점차 자신감을 키워 감.`,
-      `${domain} 학습 과제를 해결하는 과정에서 도움을 받아 내용을 정리하고 끝까지 해내려는 태도를 보임.`,
-      `${domain} 활동에 관심을 가지고 참여하며 배운 내용을 다시 확인하려고 노력함.`
-    ], state.effort)
-  };
-}
-
 async function requestDomain(domainEntry) {
   const payload = {
     grade: state.grade,
@@ -241,8 +240,9 @@ async function requestDomain(domainEntry) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return response.json();
+  const payloadJson = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payloadJson.error || `HTTP ${response.status}`);
+  return payloadJson;
 }
 
 async function generateDomains() {
@@ -261,6 +261,7 @@ async function generateDomains() {
   els.generateBtn.textContent = "생성 중...";
 
   const generated = {};
+  const errors = [];
   for (const [index, entry] of entries.entries()) {
     try {
       const result = await requestDomain(entry);
@@ -269,7 +270,9 @@ async function generateDomains() {
         good_sentences: result.good_sentences || [],
         effort_sentences: result.effort_sentences || []
       };
-    } catch (_error) {
+      if (result.apiError) errors.push(`${entry.domain}: ${result.apiError}`);
+    } catch (error) {
+      errors.push(`${entry.domain}: ${error.message}`);
       generated[domainKey(entry, index)] = mockDomainResult(entry);
     }
   }
@@ -280,7 +283,13 @@ async function generateDomains() {
   renderMetaOnly();
   els.generateBtn.disabled = false;
   els.generateBtn.textContent = "1. 영역별 예시문장 생성";
-  Harness.showToast("영역별 예시문장을 생성했습니다.");
+
+  if (errors.length) {
+    Harness.showToast("API 생성 실패 영역은 성취기준 기반 기본문장으로 표시했습니다.", "error");
+    console.warn("Domain generation fallback:", errors);
+  } else {
+    Harness.showToast("영역별 예시문장을 생성했습니다.");
+  }
 }
 
 function pickRandom(list) {
@@ -317,7 +326,7 @@ function combineOpinions() {
 
   const emptyDomain = domains.find((domain) => sentencePool(domain.data).length === 0);
   if (emptyDomain) {
-    Harness.showToast(`${emptyDomain.entry.domain} 영역에 조합할 문장이 없습니다. 영역별 예시문장을 다시 생성하세요.`, "error");
+    Harness.showToast(`${emptyDomain.entry.domain} 영역은 조합할 문장이 없습니다. 다시 생성하세요.`, "error");
     return;
   }
 
