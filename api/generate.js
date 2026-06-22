@@ -42,6 +42,14 @@ function sentenceEnd(text) {
   return /[.!?。]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+function normalizeRecordSentence(text) {
+  return String(text || "")
+    .replace(/\s*[,，]\s*/g, ". ")
+    .replace(/\.\s*\./g, ".")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildSentence({ subject, domain, standard, level, variant }) {
   const standardText = cleanStandardText(standard);
   const focus = standardText || `${domain} 영역의 학습 내용`;
@@ -98,12 +106,13 @@ function buildMockDomainResult(body) {
 
 function normalizeSentenceCount(sentences, fallbackSentences, count) {
   const normalized = Array.isArray(sentences)
-    ? sentences.map((sentence) => String(sentence || "").trim()).filter(Boolean).slice(0, count)
+    ? sentences.map((sentence) => normalizeRecordSentence(sentence)).filter(Boolean).slice(0, count)
     : [];
 
   for (const sentence of fallbackSentences || []) {
     if (normalized.length >= count) break;
-    if (!normalized.includes(sentence)) normalized.push(sentence);
+    const normalizedFallback = normalizeRecordSentence(sentence);
+    if (!normalized.includes(normalizedFallback)) normalized.push(normalizedFallback);
   }
 
   return normalized;

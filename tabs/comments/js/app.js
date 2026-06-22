@@ -79,6 +79,14 @@ function sentenceEnd(text) {
   return /[.!?。]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+function normalizeRecordSentence(text) {
+  return String(text || "")
+    .replace(/\s*[,，]\s*/g, ". ")
+    .replace(/\.\s*\./g, ".")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function standardSentence(domainEntry, level, variant, standard) {
   const focus = cleanStandardText(standard) || domainEntry.domain || state.subject;
   const templates = {
@@ -158,7 +166,7 @@ function syncFinalText(value) {
 }
 
 function renderSentenceItem(sentence) {
-  return Harness.createResultItem(sentence);
+  return Harness.createResultItem(normalizeRecordSentence(sentence));
 }
 
 function renderDomainResults() {
@@ -266,9 +274,9 @@ async function generateDomains() {
     try {
       const result = await requestDomain(entry);
       generated[domainKey(entry, index)] = {
-        excellent_sentences: result.excellent_sentences || [],
-        good_sentences: result.good_sentences || [],
-        effort_sentences: result.effort_sentences || []
+        excellent_sentences: (result.excellent_sentences || []).map(normalizeRecordSentence),
+        good_sentences: (result.good_sentences || []).map(normalizeRecordSentence),
+        effort_sentences: (result.effort_sentences || []).map(normalizeRecordSentence)
       };
       if (result.apiError) errors.push(`${entry.domain}: ${result.apiError}`);
     } catch (error) {
