@@ -42,9 +42,13 @@ function sentenceEnd(text) {
   return /[.!?。]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+const CONJUNCTIVE_PERIOD_PATTERN =
+  /([가-힣]+(?:고|며|으며|거나|든지|면서|하여|이고|이면서|하면서|도록|듯이|다가|라며|라고|다면|이어|이며|되며|되고|보며|보면서))\.\s+/g;
+
 function normalizeRecordSentence(text) {
   return String(text || "")
-    .replace(/\s*[,，]\s*/g, ". ")
+    .replace(/\s*[,，]\s*/g, " ")
+    .replace(CONJUNCTIVE_PERIOD_PATTERN, "$1 ")
     .replace(/\.\s*\./g, ".")
     .replace(/\s+/g, " ")
     .trim();
@@ -172,6 +176,7 @@ async function callGeminiForDomain(apiKey, body) {
 영역명만 반복하거나 성취기준과 무관한 일반 문장을 만들지 않습니다.
 과장, 순위, 단정적인 평가를 피하고 관찰 가능한 학습 태도와 성장 모습을 씁니다.
 문체는 학교생활기록부 문체로 '~함', '~보임', '~길러 감'처럼 끝냅니다.
+마침표는 문장의 끝맺음에만 사용합니다. '~하고', '~하며' 등 연결 어미 뒤에는 마침표나 쉼표를 쓰지 않습니다.
 응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]} JSON으로만 작성합니다.
 `;
 
@@ -228,6 +233,7 @@ async function callGeminiForCombined(apiKey, body) {
 당신은 초등학교 담임교사의 학교생활기록부 학기말 종합의견 작성을 돕습니다.
 교육과정 성취기준과 교사 관찰 메모를 바탕으로 교사가 고쳐 쓸 수 있는 예시문장을 작성합니다.
 제공된 성취기준과 무관한 일반적인 문장을 만들지 않습니다.
+마침표는 문장의 끝맺음에만 사용합니다. '~하고', '~하며' 등 연결 어미 뒤에는 마침표나 쉼표를 쓰지 않습니다.
 응답은 반드시 {"suggestions": string[]} JSON으로만 작성합니다.
 `;
 
