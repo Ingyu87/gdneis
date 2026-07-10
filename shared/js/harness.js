@@ -146,14 +146,22 @@ const Harness = (() => {
     });
   }
 
+  function normalizeRecordSentence(text) {
+    if (typeof RecordSentence !== "undefined") {
+      return RecordSentence.normalizeRecordSentence(text);
+    }
+    return String(text || "").trim();
+  }
+
   function createResultItem(sentence) {
+    const normalizedSentence = normalizeRecordSentence(sentence);
     const item = document.createElement("div");
     item.className = "result-item";
     item.tabIndex = 0;
 
     const text = document.createElement("span");
     text.className = "result-item-text";
-    text.textContent = sentence;
+    text.textContent = normalizedSentence;
 
     const actions = document.createElement("div");
     actions.className = "result-item-actions";
@@ -163,7 +171,7 @@ const Harness = (() => {
     copyBtn.className = "copy-button";
     copyBtn.textContent = "복사";
 
-    if (copiedSentences.has(sentence)) {
+    if (copiedSentences.has(normalizedSentence)) {
       item.classList.add("copied");
       item.setAttribute("aria-label", "복사한 예시문장");
       copyBtn.classList.add("copied");
@@ -172,11 +180,11 @@ const Harness = (() => {
     }
 
     async function copySentence() {
-      const ok = await copyText(sentence);
+      const ok = await copyText(normalizedSentence);
       if (ok) {
-        lastCopiedSentence = sentence;
+        lastCopiedSentence = normalizedSentence;
         markCopied(item);
-        markCopyChecked(item, copyBtn, sentence);
+        markCopyChecked(item, copyBtn, normalizedSentence);
         showToast("예시문장을 복사했습니다.");
       } else {
         showToast("복사에 실패했습니다. 문장을 직접 선택해 복사하세요.", "error");
@@ -240,6 +248,7 @@ const Harness = (() => {
     byteLength,
     markCopied,
     createResultItem,
+    normalizeRecordSentence,
     appendToTextarea,
     appendLastCopied,
     bindFinalAppendButton,

@@ -75,7 +75,7 @@ function normalizeBasisEntry(entry, index = 0) {
     category: entry?.category || "",
     title: entry?.title || "",
     basis: entry?.basis || "",
-    sentences: entrySentences(entry),
+    sentences: entrySentences(entry).map(Harness.normalizeRecordSentence),
   };
 }
 
@@ -232,7 +232,7 @@ function renderActivities() {
 }
 
 function renderExampleItem(sentence) {
-  return Harness.createResultItem(sentence);
+  return Harness.createResultItem(Harness.normalizeRecordSentence(sentence));
 }
 
 function renderCombined() {
@@ -382,7 +382,7 @@ function combineActivitySentences() {
       .map(({ basis }) => pickRandom(entrySentences(basis)))
       .filter(Boolean);
 
-    if (parts.length) result.push(parts.join(" "));
+    if (parts.length) result.push(Harness.normalizeRecordSentence(parts.join(" ")));
   }
 
   state.combinedSentences = result;

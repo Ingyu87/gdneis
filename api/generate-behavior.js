@@ -1,3 +1,5 @@
+const { normalizeRecordSentence } = require("../shared/record-sentence.js");
+
 const MODEL = "gemini-2.5-flash";
 
 function isPositiveRelationshipInput(inputText) {
@@ -66,7 +68,7 @@ function parseJsonSafely(rawText) {
 function normalizeList(value) {
   return Array.isArray(value)
     ? value
-        .map((item) => String(item || "").trim())
+        .map((item) => normalizeRecordSentence(item))
         .filter(Boolean)
         .slice(0, 5)
     : [];
@@ -86,11 +88,13 @@ async function callGemini(apiKey, inputText) {
     - 학생의 긍정적인 잠재력과 특성을 강조해야 합니다.
     - 구체적인 예시를 포함하여 '조금 길게' 작성해주세요.
     - 어미는 '~함.', '~임.', '~음.' 등으로 정중하게 끝내야 합니다.
+    - 마침표는 문장의 끝맺음에만 사용합니다. '~하고', '~하며' 등 연결 어미 뒤에는 마침표나 쉼표를 쓰지 않습니다.
 
 2.  '성장을 위한 코칭 문장' (coachings):
     - 학생의 발전을 위한 구체적이고 건설적인 조언을 포함해야 합니다. (예: 자기주도적 학습 계획 수립하는 습관을 기른다면 학업적 부분에서 발전 가능성이 있을 것으로 기대됨.)
     - ...한다면 ... 것으로 기대됨., ... 부분에 조금 더 주의를 기울인다면 ...할 수 있을 것임.과 같은 형식으로 작성해주세요.
     - 어미는 '~됨.', '~임.', '~음.' 등으로 정중하게 끝내야 합니다.
+    - 마침표는 문장의 끝맺음에만 사용합니다. '~한다면', '~기른다면' 등 연결 표현 뒤에는 마침표나 쉼표를 쓰지 않습니다.
 
 결과는 반드시 아래의 JSON 형식으로 반환해주세요.
 {

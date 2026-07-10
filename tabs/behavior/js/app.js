@@ -158,14 +158,14 @@ async function generateBehavior(event) {
     }
 
     const data = await response.json();
-    state.strengths = Array.isArray(data.strengths) ? data.strengths : [];
-    state.coachings = Array.isArray(data.coachings) ? data.coachings : [];
+    state.strengths = Array.isArray(data.strengths) ? data.strengths.map(Harness.normalizeRecordSentence) : [];
+    state.coachings = Array.isArray(data.coachings) ? data.coachings.map(Harness.normalizeRecordSentence) : [];
     Harness.showToast(data.mock ? "샘플 예시문장으로 표시했습니다." : "예시문장을 생성했습니다.");
   } catch (error) {
     console.warn("Using local behavior fallback.", error);
     const fallback = mockResults(inputText);
-    state.strengths = fallback.strengths;
-    state.coachings = fallback.coachings;
+    state.strengths = fallback.strengths.map(Harness.normalizeRecordSentence);
+    state.coachings = fallback.coachings.map(Harness.normalizeRecordSentence);
     Harness.showToast("로컬 예시문장으로 표시했습니다.");
   } finally {
     setLoading(false);

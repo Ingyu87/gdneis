@@ -1,3 +1,5 @@
+const { normalizeRecordSentence } = require("../shared/record-sentence.js");
+
 const MODEL = "gemini-2.5-flash";
 const MAX_COUNT = 25;
 
@@ -143,12 +145,14 @@ function buildMockSentence(body, item, variant) {
 }
 
 function entrySentences(entry) {
-  if (Array.isArray(entry?.sentences)) return entry.sentences.filter(Boolean);
-  return [
-    ...(Array.isArray(entry?.excellent_sentences) ? entry.excellent_sentences : []),
-    ...(Array.isArray(entry?.good_sentences) ? entry.good_sentences : []),
-    ...(Array.isArray(entry?.effort_sentences) ? entry.effort_sentences : []),
-  ].filter(Boolean);
+  const sentences = Array.isArray(entry?.sentences)
+    ? entry.sentences
+    : [
+        ...(Array.isArray(entry?.excellent_sentences) ? entry.excellent_sentences : []),
+        ...(Array.isArray(entry?.good_sentences) ? entry.good_sentences : []),
+        ...(Array.isArray(entry?.effort_sentences) ? entry.effort_sentences : []),
+      ];
+  return sentences.map(normalizeRecordSentence).filter(Boolean);
 }
 
 function buildBasisExamples(body, items) {
@@ -206,7 +210,9 @@ function normalizeBasisExamples(body, parsed) {
 
 function ensureCombinedSentences(body, parsed, basisExamples) {
   const counts = normalizeCounts(body);
-  const existing = Array.isArray(parsed.combined_sentences) ? parsed.combined_sentences.filter(Boolean) : [];
+  const existing = Array.isArray(parsed.combined_sentences)
+    ? parsed.combined_sentences.map(normalizeRecordSentence).filter(Boolean)
+    : [];
   if (existing.length >= counts.combined) return existing.slice(0, counts.combined);
 
   const fallback = buildCombinedSentences(body, getActivityItemsWithOfficer(body), basisExamples);
