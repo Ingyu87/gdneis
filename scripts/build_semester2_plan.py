@@ -86,6 +86,38 @@ def extract_domain(lines, code_index):
     return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
 
+def criteria_matches(standard, criteria):
+    words = set(re.findall(r"[가-힣]{2,}", standard))
+    words -= {"있다", "한다", "있는", "따라", "이해", "자신이", "다양한", "자신의", "할 수"}
+    text = " ".join(criteria.values())
+    return any(word in text for word in words)
+
+
+def read_criteria(lines, index):
+    window = []
+    while index < len(lines):
+        line = lines[index]
+        if window and (MONTH_RE.match(line) or line.startswith("• ")):
+            break
+        window.append(line)
+        index += 1
+        if len(window) > 90:
+            break
+    text = re.sub(r"노력\s+요함", "노력요함", "\n".join(window))
+    match = re.search(r"잘함\s*(.*?)\s*보통\s*(.*?)\s*노력요함\s*(.*)", text, re.S)
+    if not match:
+        return {"잘함": "", "보통": "", "노력요함": ""}, index
+
+    def clean(value):
+        return re.sub(r"\s+", " ", value).strip()
+
+    return {
+        "잘함": clean(match.group(1)),
+        "보통": clean(match.group(2)),
+        "노력요함": clean(match.group(3)),
+    }, index
+
+
 def parse_file(text: str) -> dict:
     matches = list(SUBJECT_RE.finditer(text))
     subjects = {}
@@ -127,18 +159,32 @@ def parse_file(text: str) -> dict:
                         index += 1
                 text_part = " ".join(part for part in [rest, *extra] if part).strip()
                 standards.append(f"{code} {text_part}".strip())
-            records.append((domain, standards))
+            criteria, index = read_criteria(lines, index)
+            if not criteria_matches(" ".join(standards), criteria):
+                criteria = {"잘함": "", "보통": "", "노력요함": ""}
+            records.append((domain, standards, criteria))
 
         grouped = []
         domain_index = {}
-        for domain, standards in records:
+        for domain, standards, criteria in records:
             domain = re.sub(r"\s+", " ", domain).strip()
             joined = " / ".join(standards)
             if domain not in domain_index:
                 domain_index[domain] = len(grouped)
-                grouped.append({"domain": domain, "standard": joined})
+                item = {"domain": domain, "standard": joined}
+                if any(criteria.values()):
+                    item["criteria"] = criteria
+                grouped.append(item)
             else:
-                grouped[domain_index[domain]]["standard"] += f" / {joined}"
+                existing = grouped[domain_index[domain]]
+                existing["standard"] += f" / {joined}"
+                if any(criteria.values()):
+                    existing.setdefault("criteria", {"잘함": "", "보통": "", "노력요함": ""})
+                    for key in ("잘함", "보통", "노력요함"):
+                        if criteria.get(key) and criteria[key] not in existing["criteria"].get(key, ""):
+                            existing["criteria"][key] = " / ".join(
+                                part for part in [existing["criteria"].get(key, ""), criteria[key]] if part
+                            )
         subjects[name] = grouped
     return subjects
 

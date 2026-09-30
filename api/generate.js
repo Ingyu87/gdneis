@@ -14,6 +14,17 @@ function safeCounts(counts = {}) {
   };
 }
 
+function criteriaLines(entry) {
+  const criteria = entry?.criteria || {};
+  const lines = ["잘함", "보통", "노력요함"]
+    .map((key) => {
+      const text = String(criteria[key] || "").replace(/\s+/g, " ").trim();
+      return text ? `- ${key}: ${text}` : "";
+    })
+    .filter(Boolean);
+  return lines.length ? lines.join("\n") : "없음";
+}
+
 function splitStandards(standardText) {
   const text = String(standardText || "").trim();
   if (!text) return [];
@@ -165,6 +176,8 @@ async function callGeminiForDomain(apiKey, body) {
 반드시 제공된 성취기준의 내용에 맞춰 예시문장을 작성합니다.
 영역명만 반복하거나 성취기준과 무관한 일반 문장을 만들지 않습니다.
 과장, 순위, 단정적인 평가를 피하고 관찰 가능한 학습 태도와 성장 모습을 씁니다.
+대회 참여, 수상, 인증시험, 방과후학교, 영재교육 기관명, 부모의 직업은 쓰지 않습니다.
+성취수준 기준이 있으면 상 문장은 잘함, 중 문장은 보통, 하 문장은 노력요함의 관찰 모습으로 씁니다.
 문체는 학교생활기록부 문체로 '~함', '~보임', '~길러 감'처럼 끝냅니다.
 마침표는 문장의 끝맺음에만 사용합니다. '~하고', '~하며' 등 연결 어미 뒤에는 마침표나 쉼표를 쓰지 않습니다.
 응답은 반드시 {"excellent_sentences": string[], "good_sentences": string[], "effort_sentences": string[]} JSON으로만 작성합니다.
@@ -178,6 +191,9 @@ async function callGeminiForDomain(apiKey, body) {
 
 성취기준 목록:
 ${standardLines}
+
+성취수준 기준:
+${criteriaLines(body.domainEntry)}
 
 생성 개수:
 - 상 문장: ${counts.excellent}개

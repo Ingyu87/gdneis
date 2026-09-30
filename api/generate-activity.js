@@ -29,7 +29,8 @@ function officerLabel(body) {
 }
 
 function buildOfficerActivity(body) {
-  if (!body.officer?.enabled) return null;
+  const grade = Number.parseInt(body.grade, 10);
+  if (!body.officer?.enabled || grade < 3) return null;
   return {
     id: "__officer",
     category: `${body.grade}학년 ${body.officer.term} 임원 활동`,
@@ -271,7 +272,9 @@ async function callGemini(apiKey, body) {
 - 선택된 학년과 선택된 학기(${selectedTerm})의 영역 근거에 포함된 내용만 사용합니다.
 - 다른 학년, 다른 학기, 다른 악기·운동·동아리·특색활동을 섞지 않습니다.
 - 1학기 근거에 동아리활동이 없으면 동아리활동을 절대 언급하지 않습니다.
-- 1·2학년은 현재 제공된 학년 교육과정 근거에 동아리활동을 넣지 않습니다.
+- 1·2학년은 학급임원, 학년임원, 전교임원을 쓰지 않고 동아리활동도 넣지 않습니다.
+- 진로활동 특기사항은 별도 항목이므로 이 문장에 넣지 않습니다.
+- 대회 참여, 수상, 인증, 표창, 부모의 직업은 쓰지 않습니다.
 - 정규교육과정 또는 학교교육계획에 근거한 활동만 언급합니다.
 - 활동 결과보다 과정에서 드러난 개별 행동 특성, 참여도, 협력, 실제 역할을 중심으로 씁니다.
 - 과장, 단정, 부정적 표현은 쓰지 않습니다.

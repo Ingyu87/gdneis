@@ -1,5 +1,8 @@
 const STORAGE_KEY = "gdneis.activity.state";
 
+// 2026 서울가동초등학교 학교교육계획서 학사일정.
+// 1학기는 3월 1일부터 여름방학 종료일(2026.08.18.)까지.
+// 2학기는 개학일(2026.08.19.)부터 종업식·졸업식(2027.02.11.)까지.
 const TERM_PERIODS = {
   "1학기": "2026.03.01.-2026.08.18.",
   "2학기": "2026.08.19.-2027.02.11.",
@@ -87,7 +90,9 @@ function normalizeSavedState() {
   if (!TERM_PERIODS[state.officerTerm]) state.officerTerm = "1학기";
   if (!["학급", "학년", "전교"].includes(state.officerType)) state.officerType = "학급";
   if (!state.officerTitle || /[?�]/.test(state.officerTitle)) state.officerTitle = "회장";
-  if (!state.officerPeriod || /[?�]/.test(state.officerPeriod)) state.officerPeriod = TERM_PERIODS[state.officerTerm];
+  if (!state.officerPeriod || /[?�]/.test(state.officerPeriod) || state.officerPeriod.includes("2027.02.05")) {
+    state.officerPeriod = TERM_PERIODS[state.officerTerm];
+  }
 
   state.basisCount = Math.min(Math.max(Number.parseInt(state.basisCount ?? state.excellent, 10) || fallbackState.basisCount, 1), 25);
   state.combinedCount = Math.min(Math.max(Number.parseInt(state.combinedCount, 10) || fallbackState.combinedCount, 1), 25);
@@ -113,8 +118,12 @@ function getSelectedActivities() {
   return selected.length ? selected : activities.slice(0, 1);
 }
 
+function officerAllowed() {
+  return Number.parseInt(state.grade, 10) >= 3;
+}
+
 function buildOfficerActivity() {
-  if (!state.officerEnabled) return null;
+  if (!officerAllowed() || !state.officerEnabled) return null;
   const label = `${state.grade}학년 ${state.officerTerm} ${state.officerType} ${state.officerTitle}(${state.officerPeriod})`;
   return {
     id: "__officer",
@@ -228,7 +237,7 @@ function renderActivities() {
     render();
   });
 
-  els.activityList.appendChild(officerLabel);
+  if (officerAllowed()) els.activityList.appendChild(officerLabel);
 }
 
 function renderExampleItem(sentence) {
@@ -301,6 +310,7 @@ function renderMetaOnly() {
 }
 
 function render() {
+  if (!officerAllowed()) state.officerEnabled = false;
   els.schoolYear.value = state.schoolYear;
   els.grade.value = state.grade;
   els.basisCount.value = state.basisCount;

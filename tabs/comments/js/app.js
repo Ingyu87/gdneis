@@ -21,6 +21,7 @@ const els = {
   semesterToggle: document.getElementById("semester-toggle"),
   grade: document.getElementById("grade-select"),
   subject: document.getElementById("subject-select"),
+  planNote: document.getElementById("plan-note"),
   excellent: document.getElementById("excellent-count"),
   good: document.getElementById("good-count"),
   effort: document.getElementById("effort-count"),
@@ -161,6 +162,28 @@ function renderOptions() {
   if (!subjects.includes(state.subject)) state.subject = subjects[0] || "";
   els.subject.innerHTML = subjects.map((subject) => `<option value="${subject}">${subject}</option>`).join("");
   els.subject.value = state.subject;
+  renderPlanNote();
+}
+
+function renderPlanNote() {
+  const entries = domainEntries();
+  if (state.subject !== "통합") {
+    els.planNote.textContent = "";
+    return;
+  }
+  const groups = [
+    ["바른생활", /바른생활|\[2바/],
+    ["슬기로운 생활", /슬기로운|\[2슬/],
+    ["즐거운 생활", /즐거운|\[2즐/],
+  ];
+  const missing = groups
+    .filter(([, pattern]) => !entries.some((entry) => pattern.test(`${entry.domain || ""} ${entry.standard || ""}`)))
+    .map(([name]) => name);
+  if (missing.length) {
+    els.planNote.textContent = `${state.semester}학기 통합 평가계획에는 ${missing.join(", ")} 성취기준이 없습니다. 기재요령은 세 교과가 빠지지 않게 쓰므로, 없는 교과는 다른 학기 관찰로 보완하세요.`;
+    return;
+  }
+  els.planNote.textContent = "1·2학년 바른생활, 슬기로운 생활, 즐거운 생활은 나이스에 통합하여 입력합니다. 세 교과가 빠지지 않게 조합하세요.";
 }
 
 function renderMetaOnly() {
@@ -394,6 +417,7 @@ function bindEvents() {
     state.generatedByDomain = {};
     state.combinedSuggestions = [];
     syncFromInputs();
+    renderPlanNote();
     renderDomainResults();
     renderCombined();
   });
