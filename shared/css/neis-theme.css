@@ -86,9 +86,49 @@ body.neis-body {
 .neis-app-header .header-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
   color: #cbd5e1;
   font-size: 0.8125rem;
+}
+
+.text-size {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: transparent;
+}
+
+.text-size button {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  width: 1.85rem;
+  height: 1.7rem;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.text-size button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.text-size button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.text-size span {
+  min-width: 3.1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #e2e8f0;
 }
 
 /* ===================== 탭 내비게이션 ===================== */
