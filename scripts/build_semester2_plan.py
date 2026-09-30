@@ -86,11 +86,10 @@ def extract_domain(lines, code_index):
     return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
 
-def criteria_matches(standard, criteria):
-    words = set(re.findall(r"[가-힣]{2,}", standard))
-    words -= {"있다", "한다", "있는", "따라", "이해", "자신이", "다양한", "자신의", "할 수"}
+def criteria_is_swapped(standard, criteria):
+    """원문 표에서 다음 단원 성취수준이 붙은 경우만 뺀다."""
     text = " ".join(criteria.values())
-    return any(word in text for word in words)
+    return "배열" in standard and "표로" in text and "배열" not in text and "규칙" not in text
 
 
 def read_criteria(lines, index):
@@ -160,7 +159,7 @@ def parse_file(text: str) -> dict:
                 text_part = " ".join(part for part in [rest, *extra] if part).strip()
                 standards.append(f"{code} {text_part}".strip())
             criteria, index = read_criteria(lines, index)
-            if not criteria_matches(" ".join(standards), criteria):
+            if criteria_is_swapped(" ".join(standards), criteria):
                 criteria = {"잘함": "", "보통": "", "노력요함": ""}
             records.append((domain, standards, criteria))
 
