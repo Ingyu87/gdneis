@@ -1,6 +1,7 @@
 const STORAGE_KEY = "gdneis.comments.state.v2";
 
 const fallbackState = {
+  semester: "1",
   grade: "4학년",
   subject: "",
   excellent: 3,
@@ -13,10 +14,11 @@ const fallbackState = {
 };
 
 let state = Harness.loadState(STORAGE_KEY, fallbackState);
-let planData = {};
+let planBySemester = { "1": {}, "2": {} };
 
 const els = {
   form: document.getElementById("comments-form"),
+  semesterToggle: document.getElementById("semester-toggle"),
   grade: document.getElementById("grade-select"),
   subject: document.getElementById("subject-select"),
   excellent: document.getElementById("excellent-count"),
@@ -36,16 +38,20 @@ const els = {
 
 const persist = Harness.debounce(() => Harness.saveState(STORAGE_KEY, state), 200);
 
+function currentPlan() {
+  return planBySemester[state.semester] || {};
+}
+
 function gradeList() {
-  return Object.keys(planData);
+  return Object.keys(currentPlan());
 }
 
 function subjectList(grade) {
-  return Object.keys(planData[grade] || {});
+  return Object.keys(currentPlan()[grade] || {});
 }
 
 function domainEntries() {
-  return planData[state.grade]?.[state.subject] || [];
+  return currentPlan()[state.grade]?.[state.subject] || [];
 }
 
 function domainKey(entry, index) {
@@ -135,7 +141,17 @@ function syncFromInputs() {
   renderMetaOnly();
 }
 
+function renderSemester() {
+  if (!["1", "2"].includes(state.semester)) state.semester = "1";
+  [...els.semesterToggle.querySelectorAll(".term-option")].forEach((button) => {
+    const active = button.dataset.semester === state.semester;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function renderOptions() {
+  renderSemester();
   const grades = gradeList();
   if (!grades.includes(state.grade)) state.grade = grades[0] || "4학년";
   els.grade.innerHTML = grades.map((grade) => `<option value="${grade}">${grade}</option>`).join("");
@@ -229,6 +245,7 @@ function render() {
 
 async function requestDomain(domainEntry) {
   const payload = {
+    semester: state.semester,
     grade: state.grade,
     subject: state.subject,
     counts: {
@@ -353,6 +370,17 @@ async function copyFinal() {
 }
 
 function bindEvents() {
+  els.semesterToggle.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-semester]");
+    if (!button || button.dataset.semester === state.semester) return;
+    state.semester = button.dataset.semester;
+    state.subject = "";
+    state.generatedByDomain = {};
+    state.combinedSuggestions = [];
+    if (!gradeList().includes(state.grade)) state.grade = gradeList()[0] || "4학년";
+    render();
+    persist();
+  });
   els.grade.addEventListener("change", () => {
     state.grade = els.grade.value;
     state.subject = "";
@@ -389,8 +417,12 @@ function bindEvents() {
 }
 
 async function init() {
-  const response = await fetch("./data/evaluation-plan.json");
-  planData = await response.json();
+  const [semester1, semester2] = await Promise.all([
+    fetch("./data/evaluation-plan.json").then((response) => response.json()),
+    fetch("./data/evaluation-plan-semester2.json").then((response) => response.json())
+  ]);
+  planBySemester = { "1": semester1, "2": semester2 };
+  if (!["1", "2"].includes(state.semester)) state.semester = "1";
   bindEvents();
   render();
 }

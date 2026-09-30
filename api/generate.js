@@ -172,6 +172,7 @@ async function callGeminiForDomain(apiKey, body) {
 
   const userPrompt = `
 학년: ${body.grade}
+학기: ${body.semester === "2" ? "2학기" : "1학기"}
 과목: ${body.subject}
 영역: ${body.domainEntry?.domain || ""}
 
